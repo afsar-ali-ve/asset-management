@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+:root.theme-dark {
+  color-scheme: dark;
+}
+
+.app-shell,
+.app-shell * {
+  transition-property: background-color, border-color, color, box-shadow, fill, stroke;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+.theme-dark.app-shell {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.theme-dark .bg-\[\#f5f6f8\] {
+  background-color: #0f172a;
+}
+
+.theme-dark .bg-white {
+  background-color: #111827;
+}
+
+.theme-dark .bg-white\/95 {
+  background-color: rgba(17, 24, 39, 0.95);
+}
+
+.theme-dark .bg-slate-50 {
+  background-color: #1f2937;
+}
+
+.theme-dark .bg-slate-100 {
+  background-color: #243244;
+}
+
+.theme-dark .bg-slate-200 {
+  background-color: #334155;
+}
+
+.theme-dark .bg-blue-50 {
+  background-color: rgba(37, 99, 235, 0.16);
+}
+
+.theme-dark .bg-red-50 {
+  background-color: rgba(220, 38, 38, 0.12);
+}
+
+.theme-dark .bg-emerald-50 {
+  background-color: rgba(5, 150, 105, 0.14);
+}
+
+.theme-dark .text-slate-900,
+.theme-dark .text-gray-900,
+.theme-dark .text-slate-800,
+.theme-dark .text-gray-800 {
+  color: #f8fafc;
+}
+
+.theme-dark .text-slate-700,
+.theme-dark .text-gray-700 {
+  color: #cbd5e1;
+}
+
+.theme-dark .text-slate-600,
+.theme-dark .text-gray-600 {
+  color: #cbd5e1;
+}
+
+.theme-dark .text-slate-500,
+.theme-dark .text-gray-500 {
+  color: #94a3b8;
+}
+
+.theme-dark .text-slate-400 {
+  color: #94a3b8;
+}
+
+.theme-dark .border-slate-100,
+.theme-dark .border-slate-200,
+.theme-dark .border-slate-200\/80,
+.theme-dark .border-gray-200,
+.theme-dark .border-slate-300 {
+  border-color: #334155;
+}
+
+.theme-dark .shadow-sm,
+.theme-dark .shadow-md,
+.theme-dark .shadow-lg,
+.theme-dark .shadow-xl {
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.32);
+}
+
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea {
+  background-color: #111827;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder {
+  color: #64748b;
+}
+
+.theme-dark table,
+.theme-dark thead,
+.theme-dark tbody,
+.theme-dark tr,
+.theme-dark th,
+.theme-dark td {
+  border-color: #334155;
+}
+
+.theme-dark th {
+  color: #e2e8f0;
+}
+
+.theme-dark .hover\:bg-slate-50:hover {
+  background-color: #1f2937;
+}
+
+.theme-dark .hover\:bg-blue-50:hover {
+  background-color: rgba(37, 99, 235, 0.16);
+}
+
+.theme-dark .hover\:bg-red-50:hover {
+  background-color: rgba(220, 38, 38, 0.14);
+}

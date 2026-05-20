@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS vendors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    currency VARCHAR(10),
+    contact_person VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    website VARCHAR(255),
+    fax VARCHAR(50),
+    description TEXT,
+    door_number VARCHAR(50),
+    street VARCHAR(255),
+    landmark VARCHAR(255),
+    city VARCHAR(100),
+    postal_code VARCHAR(20),
+    state VARCHAR(100),
+    country VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
