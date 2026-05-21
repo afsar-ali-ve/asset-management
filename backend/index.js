@@ -13,6 +13,8 @@ const assetRoutes = require('./routes/assetRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const departmentRoutes = require('./routes/departmentRoutes');
+const roleRoutes = require('./routes/roleRoutes');
+const authenticateToken = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,27 +40,28 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/assets', assetRoutes);
-app.use('/api/departments', departmentRoutes);
-app.use('/api/product-types', productTypeRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/vendors', vendorRoutes);
-app.use('/api/software-types', softwareTypeRoutes);
-app.use('/api/software-categories', softwareCategoryRoutes);
-app.use('/api/manufacturers', manufacturerRoutes);
-app.use('/api/software-license-types', softwareLicenseTypeRoutes);
-app.use('/api/asset-states', assetStateRoutes);
-app.use('/product-types', productTypeRoutes);
-app.use('/products', productRoutes);
-app.use('/vendors', vendorRoutes);
-app.use('/software-types', softwareTypeRoutes);
-app.use('/software-categories', softwareCategoryRoutes);
-app.use('/manufacturers', manufacturerRoutes);
-app.use('/software-license-types', softwareLicenseTypeRoutes);
-app.use('/asset-states', assetStateRoutes);
-app.use('/assets', assetRoutes);
+app.use('/api/user', authenticateToken, userRoutes);
+app.use('/api/users', authenticateToken, userRoutes);
+app.use('/api/roles', authenticateToken, roleRoutes);
+app.use('/api/assets', authenticateToken, assetRoutes);
+app.use('/api/departments', authenticateToken, departmentRoutes);
+app.use('/api/product-types', authenticateToken, productTypeRoutes);
+app.use('/api/products', authenticateToken, productRoutes);
+app.use('/api/vendors', authenticateToken, vendorRoutes);
+app.use('/api/software-types', authenticateToken, softwareTypeRoutes);
+app.use('/api/software-categories', authenticateToken, softwareCategoryRoutes);
+app.use('/api/manufacturers', authenticateToken, manufacturerRoutes);
+app.use('/api/software-license-types', authenticateToken, softwareLicenseTypeRoutes);
+app.use('/api/asset-states', authenticateToken, assetStateRoutes);
+app.use('/product-types', authenticateToken, productTypeRoutes);
+app.use('/products', authenticateToken, productRoutes);
+app.use('/vendors', authenticateToken, vendorRoutes);
+app.use('/software-types', authenticateToken, softwareTypeRoutes);
+app.use('/software-categories', authenticateToken, softwareCategoryRoutes);
+app.use('/manufacturers', authenticateToken, manufacturerRoutes);
+app.use('/software-license-types', authenticateToken, softwareLicenseTypeRoutes);
+app.use('/asset-states', authenticateToken, assetStateRoutes);
+app.use('/assets', authenticateToken, assetRoutes);
 
 if (require.main === module) {
   app.listen(PORT, () => {

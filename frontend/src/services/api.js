@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { getToken, isTokenExpired, logout } from '../components/auth/authStorage';
+
 const DEFAULT_API_BASE_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '';
 const API_BASE_URL = (process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, '');
 const apiUrl = (path) => `${API_BASE_URL}${path}`;
@@ -16,10 +18,43 @@ const AUTH_API_BASE_URL = apiUrl('/api/auth');
 const USER_API_BASE_URL = apiUrl('/api/user');
 const USERS_API_BASE_URL = apiUrl('/api/users');
 const DEPARTMENTS_API_BASE_URL = apiUrl('/api/departments');
-const AUTH_TOKEN_KEY = 'asset_management_auth_token';
+
+const isAuthEndpoint = (url = '') => String(url).includes('/api/auth/');
+
+axios.interceptors.request.use((config) => {
+    if (isAuthEndpoint(config.url)) {
+        return config;
+    }
+
+    const token = getToken();
+    if (!token) {
+        return config;
+    }
+
+    if (isTokenExpired()) {
+        logout({ sessionExpired: true });
+        window.location.replace('/login');
+        return Promise.reject(new axios.CanceledError('Session expired'));
+    }
+
+    config.headers = config.headers || {};
+    config.headers.Authorization = config.headers.Authorization || `Bearer ${token}`;
+    return config;
+});
+
+axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url)) {
+            logout({ sessionExpired: true });
+            window.location.replace('/login');
+        }
+        return Promise.reject(error);
+    }
+);
 
 const getAuthConfig = () => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const token = getToken();
     return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 };
 
@@ -72,7 +107,13 @@ export const signup = (data) => axios.post(`${AUTH_API_BASE_URL}/signup`, data);
 export const login = (data) => axios.post(`${AUTH_API_BASE_URL}/login`, data);
 export const forgotPassword = (data) => axios.post(`${AUTH_API_BASE_URL}/forgot-password`, data);
 export const getProfile = () => axios.get(`${USER_API_BASE_URL}/profile`, getAuthConfig());
-export const getAssignableUsers = () => axios.get(USERS_API_BASE_URL, getAuthConfig());
+export const getAssignableUsers = () => axios.get(`${USERS_API_BASE_URL}/assignable-users`, getAuthConfig());
+export const getAdminUsers = (params) => axios.get(USERS_API_BASE_URL, { ...getAuthConfig(), params });
+export const createAdminUser = (data) => axios.post(USERS_API_BASE_URL, data, getAuthConfig());
+export const updateAdminUser = (id, data) => axios.put(`${USERS_API_BASE_URL}/${id}`, data, getAuthConfig());
+export const deleteAdminUser = (id) => axios.delete(`${USERS_API_BASE_URL}/${id}`, getAuthConfig());
+export const updateAdminUserRole = (id, data) => axios.put(`${USERS_API_BASE_URL}/${id}/role`, data, getAuthConfig());
+export const getRoles = () => axios.get(apiUrl('/api/roles'), getAuthConfig());
 export const getDepartments = () => axios.get(DEPARTMENTS_API_BASE_URL);
 export const updateProfile = (data) => axios.put(`${USER_API_BASE_URL}/profile`, data, getAuthConfig());
 export const changePassword = (data) => axios.put(`${USER_API_BASE_URL}/change-password`, data, getAuthConfig());
