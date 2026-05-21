@@ -45,6 +45,15 @@ const runMigrations = async () => {
       throw err;
     }
 
+    // Run roles and user management migration after departments, because departments migration normalizes user department fields.
+    try {
+      const rolesSql = fs.readFileSync(path.join(__dirname, './migrations/create_roles_and_user_management_fields.sql'), 'utf8');
+      await pool.query(rolesSql);
+      console.log('Roles and user management fields ready');
+    } catch (err) {
+      throw err;
+    }
+
     // Run product types migration
     try {
       const productTypesSql = fs.readFileSync(path.join(__dirname, './migrations/create_product_types.sql'), 'utf8');

@@ -41,6 +41,32 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
+const ProfileAvatar = ({ imageUrl, initials, size = 'lg' }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const sizeClass = size === 'xl' ? 'h-28 w-28 text-3xl' : 'h-24 w-24 text-2xl';
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
+
+  if (imageUrl && !imageFailed) {
+    return (
+      <img
+        src={imageUrl}
+        alt="User profile"
+        onError={() => setImageFailed(true)}
+        className={`${sizeClass} rounded-full object-cover ring-4 ring-white`}
+      />
+    );
+  }
+
+  return (
+    <div className={`flex ${sizeClass} items-center justify-center rounded-full bg-slate-700 font-semibold text-white ring-4 ring-white`}>
+      {initials || 'U'}
+    </div>
+  );
+};
+
 const ProfilePage = ({ onAuthChange }) => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(() => normalizeUser(getStoredUser()));
@@ -146,6 +172,27 @@ const ProfilePage = ({ onAuthChange }) => {
     });
     setError('');
     setSuccess('');
+  };
+
+  const handleProfileImageFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileForm((current) => ({ ...current, profileImage: reader.result || '' }));
+      setError('');
+    };
+    reader.onerror = () => setError('Unable to read selected image');
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
   const handleProfileSubmit = async (event) => {
@@ -285,26 +332,39 @@ const ProfilePage = ({ onAuthChange }) => {
           </div>
 
           <form onSubmit={handleProfileSubmit} className="space-y-5 p-5">
-            <div className="grid gap-5 md:grid-cols-[160px_minmax(0,1fr)]">
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                {profileForm.profileImage ? (
-                  <img
-                    src={profileForm.profileImage}
-                    alt=""
-                    className="h-24 w-24 rounded-full object-cover ring-4 ring-white"
-                  />
-                ) : (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-700 text-2xl font-semibold text-white ring-4 ring-white">
-                    {initials}
-                  </div>
-                )}
+            <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="flex flex-col items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-5">
+                <ProfileAvatar imageUrl={profileForm.profileImage} initials={initials} size="xl" />
                 <div className="text-center">
                   <div className="text-sm font-semibold text-slate-900">{profile?.full_name || '-'}</div>
                   <div className="text-xs text-slate-500">{profile?.email || '-'}</div>
                 </div>
+                <div className="w-full space-y-2">
+                  <label className="flex w-full cursor-pointer items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700">
+                    {profileForm.profileImage ? 'Change Image' : 'Upload Image'}
+                    <input type="file" accept="image/*" onChange={handleProfileImageFile} className="sr-only" />
+                  </label>
+                  {profileForm.profileImage && (
+                    <button
+                      type="button"
+                      onClick={() => setProfileForm((current) => ({ ...current, profileImage: '' }))}
+                      className="w-full rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-50"
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <p className="text-center text-xs leading-5 text-slate-500">
+                    JPG, PNG, or GIF. Your initials are shown when no image is set.
+                  </p>
+                </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <div className="mb-5">
+                  <h3 className="text-base font-semibold text-slate-900">Basic Information</h3>
+                  <p className="mt-1 text-sm text-slate-500">Update the details used across your account.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="fullName" className="block text-sm font-medium text-slate-700">
                     Full Name
@@ -332,22 +392,19 @@ const ProfilePage = ({ onAuthChange }) => {
                     className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="profileImage" className="block text-sm font-medium text-slate-700">
-                    Profile Image URL
-                  </label>
-                  <input
-                    id="profileImage"
-                    value={profileForm.profileImage}
-                    onChange={(event) =>
-                      setProfileForm((current) => ({ ...current, profileImage: event.target.value }))
-                    }
-                    placeholder="https://example.com/avatar.jpg"
-                    className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                </div>
+                <div className="mt-5 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-semibold uppercase text-slate-500">Account Created</div>
+                    <div className="mt-1 text-sm font-medium text-slate-900">{formatDate(profile?.created_at)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase text-slate-500">Last Updated</div>
+                    <div className="mt-1 text-sm font-medium text-slate-900">{formatDate(profile?.updated_at)}</div>
+                  </div>
                 </div>
               </div>
-            </div>
+              </div>
 
             <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
               <button
@@ -370,6 +427,9 @@ const ProfilePage = ({ onAuthChange }) => {
 
         <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Account Info</h2>
+          <div className="mt-5 flex justify-center">
+            <ProfileAvatar imageUrl={profile?.profile_image} initials={initials} />
+          </div>
           <dl className="mt-5 space-y-4 text-sm">
             <div>
               <dt className="text-slate-500">Full Name</dt>
