@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import AssetsPage from './components/AssetsPage';
+import AssetsPage from './pages/assets/asset-list/AssetsPage';
 import SettingsPage from './components/SettingsPage';
 const sidebarItems = [
     { label: 'Dashboard', path: '/' },

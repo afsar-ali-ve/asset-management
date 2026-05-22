@@ -14,6 +14,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const departmentRoutes = require('./routes/departmentRoutes');
 const roleRoutes = require('./routes/roleRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const authenticateToken = require('./middleware/authMiddleware');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/user', authenticateToken, userRoutes);
 app.use('/api/users', authenticateToken, userRoutes);
 app.use('/api/roles', authenticateToken, roleRoutes);
 app.use('/api/assets', authenticateToken, assetRoutes);
+app.use('/api/dashboard', authenticateToken, dashboardRoutes);
 app.use('/api/departments', authenticateToken, departmentRoutes);
 app.use('/api/product-types', authenticateToken, productTypeRoutes);
 app.use('/api/products', authenticateToken, productRoutes);

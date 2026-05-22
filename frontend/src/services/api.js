@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getToken, isTokenExpired, logout } from '../components/auth/authStorage';
+import { getToken, isTokenExpired, logout } from '../pages/users/auth/authStorage';
 
 const DEFAULT_API_BASE_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '';
 const API_BASE_URL = (process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, '');
@@ -18,6 +18,7 @@ const AUTH_API_BASE_URL = apiUrl('/api/auth');
 const USER_API_BASE_URL = apiUrl('/api/user');
 const USERS_API_BASE_URL = apiUrl('/api/users');
 const DEPARTMENTS_API_BASE_URL = apiUrl('/api/departments');
+const DASHBOARD_API_BASE_URL = apiUrl('/api/dashboard');
 
 const isAuthEndpoint = (url = '') => String(url).includes('/api/auth/');
 
@@ -115,6 +116,7 @@ export const deleteAdminUser = (id) => axios.delete(`${USERS_API_BASE_URL}/${id}
 export const updateAdminUserRole = (id, data) => axios.put(`${USERS_API_BASE_URL}/${id}/role`, data, getAuthConfig());
 export const getRoles = () => axios.get(apiUrl('/api/roles'), getAuthConfig());
 export const getDepartments = () => axios.get(DEPARTMENTS_API_BASE_URL);
+export const getDashboardStats = () => axios.get(`${DASHBOARD_API_BASE_URL}/stats`, getAuthConfig());
 export const updateProfile = (data) => axios.put(`${USER_API_BASE_URL}/profile`, data, getAuthConfig());
 export const changePassword = (data) => axios.put(`${USER_API_BASE_URL}/change-password`, data, getAuthConfig());
 // Product APIs
