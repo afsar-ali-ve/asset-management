@@ -24,23 +24,28 @@ const ForgotPassword = () => {
   const [success, setSuccess] = useState('');
 
   if (isAuthenticated()) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       setFieldErrors({ email: 'Email is required' });
       setError('Please complete the required fields.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setFieldErrors({ email: 'Please enter a valid email address' });
       return;
     }
     setFieldErrors({});
     setLoading(true);
     try {
-      const response = await forgotPassword({ email });
-      setSuccess(response.data.message || 'Password reset instructions will be sent if the account exists.');
+      const response = await forgotPassword({ email: trimmedEmail });
+      setSuccess(response.data.message || 'If this email is registered, a password reset link has been sent.');
     } catch (submitError) {
       setError(submitError.response?.data?.error || 'Unable to process request');
     } finally {
@@ -65,7 +70,7 @@ const ForgotPassword = () => {
         </div>
         <button type="submit" disabled={loading} className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-70">
           {loading && <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>}
-          {loading ? 'Sending reset help...' : 'Send reset help'}
+          {loading ? 'Sending reset link...' : 'Send reset link'}
         </button>
         <p className="text-sm text-slate-600">
           Remembered it? <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Back to Login</Link>

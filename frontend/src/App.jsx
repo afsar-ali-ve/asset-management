@@ -17,6 +17,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import Login from './pages/users/auth/Login';
 import Signup from './pages/users/auth/Signup';
 import ForgotPassword from './pages/users/auth/ForgotPassword';
+import ResetPassword from './pages/users/auth/ResetPassword';
 import ProtectedRoute from './pages/users/auth/ProtectedRoute';
 import {
     getMillisecondsUntilExpiry,
@@ -171,7 +172,7 @@ function App() {
     const notificationRef = useRef(null);
     const user = getStoredUser();
     const authenticated = isAuthenticated();
-    const isAuthRoute = ['/login', '/signup', '/forgot-password'].includes(normalizePath(location.pathname));
+    const isAuthRoute = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(normalizePath(location.pathname));
     const handleAuthChange = useCallback(() => setAuthVersion((version) => version + 1), []);
     const handleLogout = () => {
         logout();
@@ -258,6 +259,7 @@ function App() {
           <Route path="/login" element={<Login onAuthChange={handleAuthChange}/>} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>);
     }
     if (!authenticated) {

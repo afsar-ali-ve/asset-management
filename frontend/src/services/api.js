@@ -107,6 +107,7 @@ export const deleteAsset = (id) => axios.delete(`${ASSETS_API_BASE_URL}/${id}`);
 export const signup = (data) => axios.post(`${AUTH_API_BASE_URL}/signup`, data);
 export const login = (data) => axios.post(`${AUTH_API_BASE_URL}/login`, data);
 export const forgotPassword = (data) => axios.post(`${AUTH_API_BASE_URL}/forgot-password`, data);
+export const resetPassword = (data) => axios.post(`${AUTH_API_BASE_URL}/reset-password`, data);
 export const getProfile = () => axios.get(`${USER_API_BASE_URL}/profile`, getAuthConfig());
 export const getAssignableUsers = () => axios.get(`${USERS_API_BASE_URL}/assignable-users`, getAuthConfig());
 export const getAdminUsers = (params) => axios.get(USERS_API_BASE_URL, { ...getAuthConfig(), params });
