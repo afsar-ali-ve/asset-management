@@ -27,6 +27,15 @@ const runMigrations = async () => {
       throw err;
     }
 
+    // Run password reset fields migration
+    try {
+      const userResetPasswordSql = fs.readFileSync(path.join(__dirname, './migrations/add_user_reset_password_fields.sql'), 'utf8');
+      await pool.query(userResetPasswordSql);
+      console.log('User password reset fields ready');
+    } catch (err) {
+      throw err;
+    }
+
     // Run user department and seed migration
     try {
       const userDepartmentSql = fs.readFileSync(path.join(__dirname, './migrations/add_user_department_and_seed.sql'), 'utf8');
