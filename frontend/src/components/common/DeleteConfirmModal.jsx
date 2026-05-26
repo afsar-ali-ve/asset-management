@@ -1,5 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
+import ButtonIcon from './ButtonIcon';
 
 const DeleteConfirmModal = ({
   isOpen,
@@ -23,17 +24,18 @@ const DeleteConfirmModal = ({
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            <ButtonIcon type="close" />
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={isLoading}
-            className="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isLoading && <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>}
+            {isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span> : <ButtonIcon type="delete" />}
             Delete
           </button>
         </div>

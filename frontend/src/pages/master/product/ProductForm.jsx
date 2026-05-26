@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ButtonIcon from '../../../components/common/ButtonIcon';
 const manufacturerOptions = ['Manufacturer A', 'Manufacturer B', 'Manufacturer C'];
 const getProductTypeId = (value) => {
     if (!value) {
@@ -202,11 +203,10 @@ const ProductForm = ({ editing, onSave, onClose, productTypes, saving }) => {
 
       <div className="flex justify-end gap-3 pt-4">
         <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50">
-          Close
+          <ButtonIcon type="close" /> Close
         </button>
-        <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center justify-center" disabled={saving}>
-          {saving ? (<span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></span>) : null}
-          Save
+        <button type="button" onClick={handleSubmit} className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center justify-center" disabled={saving}>
+          {saving ? (<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>) : (<ButtonIcon type="save" />)} Save
         </button>
       </div>
     </div>);

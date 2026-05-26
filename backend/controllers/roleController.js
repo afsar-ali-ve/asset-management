@@ -5,13 +5,12 @@ const getRoles = async (req, res) => {
     const result = await pool.query(
       `SELECT id, role_name, description, created_at, updated_at
        FROM roles
+       WHERE role_name IN ('Admin', 'Basic')
        ORDER BY
          CASE role_name
            WHEN 'Admin' THEN 1
-           WHEN 'Manager' THEN 2
-           WHEN 'Employee' THEN 3
-           WHEN 'Viewer' THEN 4
-           ELSE 5
+           WHEN 'Basic' THEN 2
+           ELSE 3
          END,
          role_name ASC`
     );

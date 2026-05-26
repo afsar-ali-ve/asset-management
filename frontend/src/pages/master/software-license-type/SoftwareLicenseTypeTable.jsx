@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ButtonIcon from '../../../components/common/ButtonIcon';
 import SoftwareLicenseTypeForm from './SoftwareLicenseTypeForm';
 import Modal from '../../../components/common/Modal';
 import DeleteConfirmModal from '../../../components/common/DeleteConfirmModal';
@@ -240,11 +241,11 @@ const SoftwareLicenseTypeTable = () => {
               <input value={draftColumnFilter.value} onChange={(event) => setDraftColumnFilter((prev) => ({ ...prev, value: event.target.value }))} disabled={isValueDisabled} placeholder="Filter..." className="w-full rounded border border-slate-300 bg-white py-2 pl-7 pr-2 text-sm font-normal normal-case tracking-normal text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"/>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => handleApplyColumnFilter(field)} className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                Apply
+              <button type="button" onClick={() => handleApplyColumnFilter(field)} className="inline-flex items-center justify-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <ButtonIcon type="apply" /> Apply
               </button>
-              <button type="button" onClick={() => handleResetColumnFilter(field)} className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                Reset
+              <button type="button" onClick={() => handleResetColumnFilter(field)} className="inline-flex items-center justify-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <ButtonIcon type="reset" /> Reset
               </button>
             </div>
           </div>)}
@@ -262,17 +263,17 @@ const SoftwareLicenseTypeTable = () => {
                 {option}
               </option>))}
           </select>
-          <button onClick={() => handleOpen()} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button">
+          <button onClick={() => handleOpen()} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button">
             New Software License Type
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={handleClearFilters} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button">
-            Clear All Filters
+          <button onClick={handleClearFilters} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button">
+            <ButtonIcon type="clear" /> Clear All Filters
           </button>
           <div className="relative">
-            <button onClick={(event) => setColumnsAnchorEl(event.currentTarget)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button">
-              &#9654; Select Columns
+            <button onClick={(event) => setColumnsAnchorEl(event.currentTarget)} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button">
+              <ButtonIcon type="columns" /> Select Columns
             </button>
             {columnsAnchorEl && (<div ref={columnsMenuRef} className="absolute right-0 z-10 mt-1 w-56 rounded-md border border-slate-300 bg-white p-2 shadow-lg">
                 {allColumns.map((column) => (<label key={column.field} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 hover:bg-slate-50">
@@ -335,22 +336,22 @@ const SoftwareLicenseTypeTable = () => {
                 if (actionRow)
                     handleOpen(actionRow);
                 setActionAnchorEl(null);
-            }} className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100" type="button">
-            Edit
+            }} className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100" type="button">
+            <ButtonIcon type="edit" /> Edit
           </button>
           <button onClick={() => {
                 if (actionRow)
                     handleDelete(actionRow.id);
                 setActionAnchorEl(null);
-            }} className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100" type="button">
-            Delete
+            }} className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100" type="button">
+            <ButtonIcon type="delete" /> Delete
           </button>
         </div>)}
 
       <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm text-slate-700">
           <span>Page Size:</span>
-          <select value={pageSize} onChange={(event) => { setPageSize(parseInt(event.target.value, 10)); setCurrentPage(1); }} className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select value={pageSize} onChange={(event) => { setPageSize(parseInt(event.target.value, 10)); setCurrentPage(1); }} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
@@ -359,12 +360,12 @@ const SoftwareLicenseTypeTable = () => {
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
           <span>{sortedLicenseTypes.length === 0 ? '0 to 0 of 0' : `${startIndex + 1} to ${Math.min(endIndex, sortedLicenseTypes.length)} of ${sortedLicenseTypes.length}`}</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)} disabled={currentPage === 1} className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" type="button">
-              &#8592;
+            <button onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)} disabled={currentPage === 1} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" type="button">
+              <ButtonIcon type="previous" />
             </button>
             <span className="text-sm text-slate-600">Page {currentPage} of {totalPages}</span>
-            <button onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages} className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" type="button">
-              &#8594;
+            <button onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" type="button">
+              <ButtonIcon type="next" />
             </button>
           </div>
         </div>

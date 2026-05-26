@@ -103,7 +103,7 @@ const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     const result = await pool.query(
       `INSERT INTO users (full_name, email, password, role_id, status, is_active)
-       VALUES ($1, $2, $3, (SELECT id FROM roles WHERE role_name = 'Employee'), 'Active', TRUE)
+       VALUES ($1, $2, $3, (SELECT id FROM roles WHERE role_name = 'Basic'), 'Active', TRUE)
        RETURNING id`,
       [fullName.trim(), email, hashedPassword]
     );
