@@ -11,9 +11,7 @@ CREATE TABLE IF NOT EXISTS roles (
 INSERT INTO roles (role_name, description)
 VALUES
   ('Admin', 'Full administrative access to user and asset management.'),
-  ('Manager', 'Management access for teams and operational workflows.'),
-  ('Employee', 'Standard employee access to assigned workflows.'),
-  ('Viewer', 'Read-only access to permitted areas.')
+  ('Basic', 'Basic role for standard application access.')
 ON CONFLICT (role_name) DO UPDATE
 SET
   description = EXCLUDED.description,
@@ -60,11 +58,21 @@ END $$;
 
 UPDATE users
 SET
-  role_id = COALESCE(role_id, (SELECT id FROM roles WHERE role_name = 'Employee')),
+  role_id = COALESCE(role_id, (SELECT id FROM roles WHERE role_name = 'Basic')),
   status = COALESCE(NULLIF(status, ''), 'Active'),
   is_active = COALESCE(is_active, TRUE),
   updated_at = CURRENT_TIMESTAMP
 WHERE role_id IS NULL OR status IS NULL;
+
+UPDATE users
+SET
+  role_id = (SELECT id FROM roles WHERE role_name = 'Basic'),
+  updated_at = CURRENT_TIMESTAMP
+WHERE role_id IN (
+  SELECT id FROM roles WHERE role_name NOT IN ('Admin', 'Basic')
+);
+
+DELETE FROM roles WHERE role_name NOT IN ('Admin', 'Basic');
 
 INSERT INTO users (full_name, email, password, role_id, status, is_active)
 VALUES (

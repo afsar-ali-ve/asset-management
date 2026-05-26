@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   createAdminUser,
-  deleteAdminUser,
   getAdminUsers,
   getRoles,
   updateAdminUser,
-  updateAdminUserRole,
 } from '../../../services/api';
 import Modal from '../../../components/common/Modal';
-import DeleteConfirmModal from '../../../components/common/DeleteConfirmModal';
 import useResizableColumns from '../../../components/common/useResizableColumns';
 
 const emptyForm = {
@@ -27,12 +25,35 @@ const inputClass = (hasError) =>
     hasError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20'
   }`;
 
+const ButtonIcon = ({ type, className = 'h-4 w-4' }) => {
+  const iconProps = {
+    className,
+    viewBox: '0 0 20 20',
+    fill: 'none',
+    'aria-hidden': 'true',
+  };
+
+  const paths = {
+    add: <path d="M10 4.25V15.75M4.25 10H15.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>,
+    save: <path d="M5 3.75H13.25L16.25 6.75V16.25H3.75V3.75H5ZM7 3.75V8.25H13V3.75M6.75 16.25V11.75H13.25V16.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>,
+    close: <path d="M5.25 5.25L14.75 14.75M14.75 5.25L5.25 14.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>,
+    clear: <path d="M5.25 5.25L14.75 14.75M14.75 5.25L5.25 14.75M3.75 16.25H16.25" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>,
+    active: <path d="M16.25 6.25L8.75 13.75L5 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>,
+    inactive: <path d="M5.25 5.25L14.75 14.75M14.75 5.25L5.25 14.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>,
+    previous: <path d="M12.5 5L7.5 10L12.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>,
+    next: <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>,
+  };
+
+  return <svg {...iconProps}>{paths[type]}</svg>;
+};
+
 const formatDate = (value) => {
   if (!value) return '-';
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(value));
 };
 
 const getRoleName = (roles, roleId) => roles.find((role) => role.id === roleId)?.role_name || '';
+const isAdminRole = (user) => user?.role_name === 'Admin' || user?.role === 'Admin';
 const isDefaultAdminEmail = (email) => (email || '').trim().toLowerCase() === 'admin@virtualemployee.com';
 const userColumns = [
   { field: 'full_name', label: 'Full Name' },
@@ -54,7 +75,11 @@ const defaultColumnWidths = {
 const UserFormModal = ({ open, mode, user, roles, saving, serverError, onClose, onSave }) => {
   const [formData, setFormData] = useState(emptyForm);
   const [errors, setErrors] = useState({});
-  const isEdit = mode === 'edit';
+  const isViewMode = mode === 'view';
+  const isEdit = mode === 'edit' || isViewMode;
+  const isView = mode === 'view';
+  const isLockedDefaultAdmin = isDefaultAdminEmail(user?.email);
+  const isReadOnly = isLockedDefaultAdmin;
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +94,7 @@ const UserFormModal = ({ open, mode, user, roles, saving, serverError, onClose, 
       isActive: user.is_active !== false,
     } : {
       ...emptyForm,
-      roleId: roles.find((role) => role.role_name === 'Employee')?.id || roles[0]?.id || '',
+      roleId: roles.find((role) => role.role_name === 'Basic')?.id || roles[0]?.id || '',
     });
   }, [open, roles, user]);
 
@@ -95,6 +120,7 @@ const UserFormModal = ({ open, mode, user, roles, saving, serverError, onClose, 
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (isReadOnly) return;
     if (!validate()) return;
     onSave({
       full_name: formData.fullName.trim(),
@@ -108,120 +134,110 @@ const UserFormModal = ({ open, mode, user, roles, saving, serverError, onClose, 
   };
 
   return (
-    <Modal open={open} title={isEdit ? 'Edit User' : 'Add User'} description={isEdit ? 'Update user access and account details.' : 'Create a new user account.'} onClose={saving ? undefined : onClose} maxWidth="max-w-2xl">
+    <Modal open={open} title={isView ? 'View Profile' : isEdit ? 'Edit User' : 'Add User'} description={isLockedDefaultAdmin ? 'Default admin profile cannot be modified.' : isView ? 'Review and update user account details.' : isEdit ? 'Update user access and account details.' : 'Create a new user account.'} onClose={saving ? undefined : onClose} maxWidth="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
         {serverError && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{serverError}</div>}
+        {isLockedDefaultAdmin && <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">Default admin profile cannot be modified.</div>}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="user_full_name" className="block text-sm font-medium text-slate-700">Full Name{requiredMark}</label>
-            <input id="user_full_name" value={formData.fullName} onChange={(event) => updateField('fullName', event.target.value)} className={inputClass(errors.fullName)} />
+            <input id="user_full_name" value={formData.fullName} readOnly={isReadOnly} onChange={(event) => updateField('fullName', event.target.value)} className={inputClass(errors.fullName)} />
             {errors.fullName && <p className="mt-1 text-xs font-medium text-red-600">{errors.fullName}</p>}
           </div>
           <div>
             <label htmlFor="user_email" className="block text-sm font-medium text-slate-700">Email{requiredMark}</label>
-            <input id="user_email" type="email" value={formData.email} onChange={(event) => updateField('email', event.target.value)} className={inputClass(errors.email)} />
+            <input id="user_email" type="email" value={formData.email} readOnly={isReadOnly} onChange={(event) => updateField('email', event.target.value)} className={inputClass(errors.email)} />
             {errors.email && <p className="mt-1 text-xs font-medium text-red-600">{errors.email}</p>}
           </div>
-          <div>
-            <label htmlFor="user_password" className="block text-sm font-medium text-slate-700">Password{!isEdit && requiredMark}</label>
-            <input id="user_password" type="password" value={formData.password} onChange={(event) => updateField('password', event.target.value)} placeholder={isEdit ? 'Leave blank to keep current password' : ''} className={inputClass(errors.password)} />
-            {errors.password && <p className="mt-1 text-xs font-medium text-red-600">{errors.password}</p>}
-          </div>
-          <div>
-            <label htmlFor="user_confirm_password" className="block text-sm font-medium text-slate-700">Confirm Password{!isEdit && requiredMark}</label>
-            <input id="user_confirm_password" type="password" value={formData.confirmPassword} onChange={(event) => updateField('confirmPassword', event.target.value)} className={inputClass(errors.confirmPassword)} />
-            {errors.confirmPassword && <p className="mt-1 text-xs font-medium text-red-600">{errors.confirmPassword}</p>}
-          </div>
-          <div>
-            <label htmlFor="user_department" className="block text-sm font-medium text-slate-700">Department</label>
-            <input id="user_department" value={formData.department} onChange={(event) => updateField('department', event.target.value)} className={inputClass()} />
-          </div>
-          <div>
-            <label htmlFor="user_role" className="block text-sm font-medium text-slate-700">Role{requiredMark}</label>
-            <select id="user_role" value={formData.roleId} onChange={(event) => updateField('roleId', event.target.value)} className={inputClass(errors.roleId)}>
-              <option value="">Select role</option>
-              {roles.map((role) => <option key={role.id} value={role.id}>{role.role_name}</option>)}
-            </select>
-            {errors.roleId && <p className="mt-1 text-xs font-medium text-red-600">{errors.roleId}</p>}
-          </div>
+          {(!isView || !isLockedDefaultAdmin) && (
+            <>
+              <div>
+                <label htmlFor="user_password" className="block text-sm font-medium text-slate-700">Password{!isEdit && requiredMark}</label>
+                <input id="user_password" type="password" value={formData.password} onChange={(event) => updateField('password', event.target.value)} placeholder={isEdit ? 'Leave blank to keep current password' : ''} className={inputClass(errors.password)} />
+                {errors.password && <p className="mt-1 text-xs font-medium text-red-600">{errors.password}</p>}
+              </div>
+              <div>
+                <label htmlFor="user_confirm_password" className="block text-sm font-medium text-slate-700">Confirm Password{!isEdit && requiredMark}</label>
+                <input id="user_confirm_password" type="password" value={formData.confirmPassword} onChange={(event) => updateField('confirmPassword', event.target.value)} className={inputClass(errors.confirmPassword)} />
+                {errors.confirmPassword && <p className="mt-1 text-xs font-medium text-red-600">{errors.confirmPassword}</p>}
+              </div>
+              {!isView && (
+                <>
+                  <div>
+                    <label htmlFor="user_department" className="block text-sm font-medium text-slate-700">Department</label>
+                    <input id="user_department" value={formData.department} onChange={(event) => updateField('department', event.target.value)} className={inputClass()} />
+                  </div>
+                  <div>
+                    <label htmlFor="user_role" className="block text-sm font-medium text-slate-700">Role{requiredMark}</label>
+                    <select id="user_role" value={formData.roleId} onChange={(event) => updateField('roleId', event.target.value)} className={inputClass(errors.roleId)}>
+                      <option value="">Select role</option>
+                      {roles.map((role) => <option key={role.id} value={role.id}>{role.role_name}</option>)}
+                    </select>
+                    {errors.roleId && <p className="mt-1 text-xs font-medium text-red-600">{errors.roleId}</p>}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
         <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
-          <input type="checkbox" checked={formData.isActive} onChange={(event) => updateField('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          <input type="checkbox" checked={formData.isActive} disabled={isReadOnly} onChange={(event) => updateField('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed" />
           Active user
         </label>
         <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={saving} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">Cancel</button>
-          <button type="submit" disabled={saving} className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
-            {saving && <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>}
-            {isEdit ? 'Save Changes' : 'Create User'}
+          <button type="button" onClick={onClose} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+            <ButtonIcon type="close" />
+            {isReadOnly ? 'Close' : 'Cancel'}
           </button>
+          {!isReadOnly && (
+            <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
+              {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span> : <ButtonIcon type={isEdit ? 'save' : 'add'} />}
+              {isEdit ? 'Save Changes' : 'Create User'}
+            </button>
+          )}
         </div>
       </form>
     </Modal>
   );
 };
 
-const RoleModal = ({ open, user, roles, saving, error, onClose, onSave }) => {
-  const [roleId, setRoleId] = useState('');
-
-  useEffect(() => {
-    setRoleId(user?.role_id || '');
-  }, [user]);
-
-  return (
-    <Modal open={open} title="Assign Role" description={user ? `Update role for ${user.full_name}.` : ''} onClose={saving ? undefined : onClose} maxWidth="max-w-md">
-      <div className="space-y-5">
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
-        <div>
-          <label htmlFor="assign_role" className="block text-sm font-medium text-slate-700">Role{requiredMark}</label>
-          <select id="assign_role" value={roleId} onChange={(event) => setRoleId(event.target.value)} className={inputClass(!roleId)}>
-            <option value="">Select role</option>
-            {roles.map((role) => <option key={role.id} value={role.id}>{role.role_name}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={saving} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">Cancel</button>
-          <button type="button" onClick={() => roleId && onSave(roleId)} disabled={saving || !roleId} className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
-            {saving && <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>}
-            Update Role
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
-const UserDetailsModal = ({ open, user, onClose }) => {
-  const details = [
-    ['Full Name', user?.full_name],
-    ['Email', user?.email],
-    ['Role', user?.role_name],
-    ['Department', user?.department || '-'],
-    ['Status', user?.is_active ? 'Active' : 'Inactive'],
-    ['Created Date', formatDate(user?.created_at)],
-    ['Last Login', formatDate(user?.last_login)],
-  ];
-
-  return (
-    <Modal open={open} title="User Details" description={user ? `View account details for ${user.full_name}.` : ''} onClose={onClose} maxWidth="max-w-lg">
-      <div className="divide-y divide-slate-200 rounded-lg border border-slate-200">
-        {details.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-[140px_1fr] gap-4 px-4 py-3 text-sm">
-            <div className="font-semibold text-slate-500">{label}</div>
-            <div className="min-w-0 break-words font-medium text-slate-900">{value || '-'}</div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-5 flex justify-end border-t border-slate-200 pt-5">
-        <button type="button" onClick={onClose} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-          Close
+const ActionMenu = ({ user, open, onToggle, onViewProfile, onManageRole }) => (
+  <div className="relative inline-flex">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      aria-label={`Open actions for ${user.full_name}`}
+      aria-haspopup="menu"
+      aria-expanded={open}
+    >
+      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 5.25H10.01M10 10H10.01M10 14.75H10.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
+      </svg>
+    </button>
+    {open && (
+      <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl" role="menu">
+        <button type="button" onClick={onViewProfile} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50" role="menuitem">
+          <svg className="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M2.75 10C3.91 6.65 6.57 4.75 10 4.75C13.43 4.75 16.09 6.65 17.25 10C16.09 13.35 13.43 15.25 10 15.25C6.57 15.25 3.91 13.35 2.75 10Z" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M10 12.25C11.24 12.25 12.25 11.24 12.25 10C12.25 8.76 11.24 7.75 10 7.75C8.76 7.75 7.75 8.76 7.75 10C7.75 11.24 8.76 12.25 10 12.25Z" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+          View Profile
+        </button>
+        <button type="button" onClick={onManageRole} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50" role="menuitem">
+          <svg className="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M10 2.75L16.25 5.25V9.25C16.25 13.27 13.69 16.83 10 18.1C6.31 16.83 3.75 13.27 3.75 9.25V5.25L10 2.75Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M7.75 10.25L9.25 11.75L12.75 8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Manage Role
         </button>
       </div>
-    </Modal>
-  );
-};
+    )}
+  </div>
+);
 
 const UserManagementPage = ({ currentUser }) => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -236,13 +252,11 @@ const UserManagementPage = ({ currentUser }) => {
   const [sortField, setSortField] = useState('full_name');
   const [sortDirection, setSortDirection] = useState('asc');
   const [modalMode, setModalMode] = useState(null);
-  const [viewingUser, setViewingUser] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
-  const [roleUser, setRoleUser] = useState(null);
-  const [deleteUser, setDeleteUser] = useState(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [formError, setFormError] = useState('');
 
-  const isAdmin = isDefaultAdminEmail(currentUser?.email);
+  const isAdmin = isAdminRole(currentUser);
   const { getColumnStyle, renderResizeHandle } = useResizableColumns(defaultColumnWidths);
 
   const loadData = async () => {
@@ -345,7 +359,7 @@ const UserManagementPage = ({ currentUser }) => {
   if (!isAdmin) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800">
-        Access Denied. User Management is available only for the admin account.
+        Access Denied. User Management is available only for Admin users.
       </div>
     );
   }
@@ -366,37 +380,6 @@ const UserManagementPage = ({ currentUser }) => {
       setEditingUser(null);
     } catch (saveError) {
       setFormError(saveError.response?.data?.error || 'Unable to save user');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleRoleSave = async (roleId) => {
-    setSaving(true);
-    setFormError('');
-    setSuccess('');
-    try {
-      const response = await updateAdminUserRole(roleUser.id, { role_id: roleId });
-      setUsers((current) => current.map((item) => (item.id === response.data.user.id ? response.data.user : item)));
-      setSuccess(response.data.message || 'Role updated successfully');
-      setRoleUser(null);
-    } catch (saveError) {
-      setFormError(saveError.response?.data?.error || 'Unable to update role');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    setSaving(true);
-    setSuccess('');
-    try {
-      await deleteAdminUser(deleteUser.id);
-      setUsers((current) => current.filter((item) => item.id !== deleteUser.id));
-      setSuccess('User deleted successfully');
-      setDeleteUser(null);
-    } catch (deleteError) {
-      setError(deleteError.response?.data?.error || 'Unable to delete user');
     } finally {
       setSaving(false);
     }
@@ -434,7 +417,8 @@ const UserManagementPage = ({ currentUser }) => {
           <h1 className="text-2xl font-semibold text-slate-900">User Management</h1>
           <p className="mt-1 text-sm text-slate-500">Manage users, roles, and account status.</p>
         </div>
-        <button type="button" onClick={() => { setEditingUser(null); setFormError(''); setModalMode('add'); }} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+        <button type="button" onClick={() => { setEditingUser(null); setFormError(''); setModalMode('add'); }} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+          <ButtonIcon type="add" />
           Add User
         </button>
       </div>
@@ -467,7 +451,8 @@ const UserManagementPage = ({ currentUser }) => {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
-          <button type="button" onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <ButtonIcon type="clear" />
             Clear
           </button>
         </div>
@@ -479,7 +464,7 @@ const UserManagementPage = ({ currentUser }) => {
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 {userColumns.map((column) => renderColumnHeader(column.field, column.label))}
-                <th className="w-56 text-left">Actions</th>
+                <th className="w-28 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -494,25 +479,28 @@ const UserManagementPage = ({ currentUser }) => {
                   <td style={getColumnStyle('role_name')}><span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{user.role_name || getRoleName(roles, user.role_id) || '-'}</span></td>
                   <td className="truncate" style={getColumnStyle('department')}>{user.department || '-'}</td>
                   <td style={getColumnStyle('status')}>
-                    <button type="button" onClick={() => handleStatusToggle(user)} disabled={saving || isDefaultAdminEmail(user.email)} className={`rounded-full px-2 py-1 text-xs font-semibold ${user.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'} disabled:cursor-not-allowed disabled:opacity-60`}>
+                    <button type="button" onClick={() => handleStatusToggle(user)} disabled={saving || user.id === currentUser?.id} className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold ${user.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'} disabled:cursor-not-allowed disabled:opacity-60`}>
+                      <ButtonIcon type={user.is_active ? 'active' : 'inactive'} className="h-3.5 w-3.5" />
                       {user.is_active ? 'Active' : 'Inactive'}
                     </button>
                   </td>
                   <td style={getColumnStyle('created_at')}>{formatDate(user.created_at)}</td>
-                  <td>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button type="button" onClick={() => setViewingUser(user)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label={`View ${user.full_name}`} title="View user">
-                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                          <path d="M2.75 10C3.91 6.65 6.57 4.75 10 4.75C13.43 4.75 16.09 6.65 17.25 10C16.09 13.35 13.43 15.25 10 15.25C6.57 15.25 3.91 13.35 2.75 10Z" stroke="currentColor" strokeWidth="1.5"/>
-                          <path d="M10 12.25C11.24 12.25 12.25 11.24 12.25 10C12.25 8.76 11.24 7.75 10 7.75C8.76 7.75 7.75 8.76 7.75 10C7.75 11.24 8.76 12.25 10 12.25Z" stroke="currentColor" strokeWidth="1.5"/>
-                        </svg>
-                      </button>
-                      <button type="button" onClick={() => { setEditingUser(user); setFormError(''); setModalMode('edit'); }} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-blue-50 hover:text-blue-700" aria-label={`Edit ${user.full_name}`} title="Edit user">
-                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 14.75V16H5.25L14.1 7.15L12.85 5.9L4 14.75Z" stroke="currentColor" strokeWidth="1.5"/><path d="M12.2 6.55L13.45 5.3C13.96 4.79 14.79 4.79 15.3 5.3C15.81 5.81 15.81 6.64 15.3 7.15L14.05 8.4" stroke="currentColor" strokeWidth="1.5"/></svg>
-                      </button>
-                      <button type="button" onClick={() => { setRoleUser(user); setFormError(''); }} disabled={isDefaultAdminEmail(user.email)} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Role</button>
-                      <button type="button" onClick={() => setDeleteUser(user)} disabled={user.id === currentUser?.id || isDefaultAdminEmail(user.email)} className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
-                    </div>
+                  <td className="relative">
+                    <ActionMenu
+                      user={user}
+                      open={openActionMenuId === user.id}
+                      onToggle={() => setOpenActionMenuId((current) => (current === user.id ? null : user.id))}
+                      onViewProfile={() => {
+                        setEditingUser(user);
+                        setFormError('');
+                        setModalMode('view');
+                        setOpenActionMenuId(null);
+                      }}
+                      onManageRole={() => {
+                        setOpenActionMenuId(null);
+                        navigate(`/users/manage-role/${user.id}`);
+                      }}
+                    />
                   </td>
                 </tr>
               ))}
@@ -538,12 +526,12 @@ const UserManagementPage = ({ currentUser }) => {
               {sortedUsers.length === 0 ? '0 to 0 of 0' : `${startIndex + 1} to ${Math.min(startIndex + pageSize, sortedUsers.length)} of ${sortedUsers.length}`}
             </span>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1} className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
-                &#8592;
+              <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1} className="inline-flex items-center justify-center rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Previous page">
+                <ButtonIcon type="previous" />
               </button>
               <span className="text-sm text-slate-600">Page {currentPage} of {totalPages}</span>
-              <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages} className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
-                &#8594;
+              <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages} className="inline-flex items-center justify-center rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Next page">
+                <ButtonIcon type="next" />
               </button>
             </div>
           </div>
@@ -551,9 +539,6 @@ const UserManagementPage = ({ currentUser }) => {
       </div>
 
       <UserFormModal open={Boolean(modalMode)} mode={modalMode} user={editingUser} roles={roles} saving={saving} serverError={formError} onClose={() => { setModalMode(null); setEditingUser(null); }} onSave={handleSaveUser} />
-      <UserDetailsModal open={Boolean(viewingUser)} user={viewingUser} onClose={() => setViewingUser(null)} />
-      <RoleModal open={Boolean(roleUser)} user={roleUser} roles={roles} saving={saving} error={formError} onClose={() => setRoleUser(null)} onSave={handleRoleSave} />
-      <DeleteConfirmModal isOpen={Boolean(deleteUser)} title="Delete User" message="Are you sure you want to delete this user?" itemName={deleteUser?.full_name} onCancel={() => setDeleteUser(null)} onConfirm={handleDelete} isLoading={saving} />
     </div>
   );
 };

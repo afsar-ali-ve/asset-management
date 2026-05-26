@@ -26,6 +26,7 @@ const normalizeStatus = (status, isActive) => {
   }
   return status === 'Inactive' ? 'Inactive' : 'Active';
 };
+const allowedRoleNames = ['Admin', 'Basic'];
 
 const userSelectSql = `
   SELECT
@@ -219,8 +220,8 @@ const createUser = async (req, res) => {
     }
 
     const roleResult = roleId
-      ? await pool.query('SELECT id FROM roles WHERE id = $1', [roleId])
-      : await pool.query("SELECT id FROM roles WHERE role_name = 'Employee'");
+      ? await pool.query('SELECT id, role_name FROM roles WHERE id = $1 AND role_name = ANY($2)', [roleId, allowedRoleNames])
+      : await pool.query("SELECT id, role_name FROM roles WHERE role_name = 'Basic'");
     if (roleResult.rows.length === 0) {
       return res.status(400).json({ error: 'Please select a valid role' });
     }
@@ -268,7 +269,7 @@ const updateUser = async (req, res) => {
     }
 
     if (roleId) {
-      const roleResult = await pool.query('SELECT id FROM roles WHERE id = $1', [roleId]);
+      const roleResult = await pool.query('SELECT id FROM roles WHERE id = $1 AND role_name = ANY($2)', [roleId, allowedRoleNames]);
       if (roleResult.rows.length === 0) {
         return res.status(400).json({ error: 'Please select a valid role' });
       }
@@ -279,8 +280,8 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (existingResult.rows[0].email === 'admin@virtualemployee.com' && !isActive) {
-      return res.status(400).json({ error: 'Default admin user cannot be deactivated' });
+    if (id === req.user.id && !isActive) {
+      return res.status(400).json({ error: 'You cannot deactivate your own account' });
     }
 
     const values = [fullName.trim(), email, department, roleId, status, isActive, id];
@@ -324,10 +325,6 @@ const deleteUser = async (req, res) => {
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    if (existingResult.rows[0].email === 'admin@virtualemployee.com') {
-      return res.status(400).json({ error: 'Default admin user cannot be deleted' });
-    }
-
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -345,7 +342,7 @@ const updateUserRole = async (req, res) => {
       return res.status(400).json({ error: 'Role is required' });
     }
 
-    const roleResult = await pool.query('SELECT id, role_name FROM roles WHERE id = $1', [roleId]);
+    const roleResult = await pool.query('SELECT id, role_name FROM roles WHERE id = $1 AND role_name = ANY($2)', [roleId, allowedRoleNames]);
     if (roleResult.rows.length === 0) {
       return res.status(400).json({ error: 'Please select a valid role' });
     }
@@ -354,10 +351,6 @@ const updateUserRole = async (req, res) => {
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    if (existingResult.rows[0].email === 'admin@virtualemployee.com' && roleResult.rows[0].role_name !== 'Admin') {
-      return res.status(400).json({ error: 'Default admin user must keep the Admin role' });
-    }
-
     await pool.query('UPDATE users SET role_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [roleId, id]);
     const userResult = await pool.query(`${userSelectSql} WHERE u.id = $1`, [id]);
     res.json({ message: 'Role updated successfully', user: sanitizeUser(userResult.rows[0]) });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import ButtonIcon from '../../../components/common/ButtonIcon';
 import { createProductType, updateProductType } from '../../../services/api';
 const categoryOptions = ['Asset', 'Consumable'];
 const assetTypeOptions = ['Asset', 'Consumable', 'Component'];
@@ -320,12 +321,11 @@ const ProductTypeForm = ({ editing, onSave, onClose, productTypes, saving, paren
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">
-        <button type="button" onClick={onClose} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          Close
+        <button type="button" onClick={onClose} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <ButtonIcon type="close" /> Close
         </button>
-        <button type="button" onClick={handleSaveClick} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={saving || !formIsValid}>
-          {saving ? (<span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></span>) : null}
-          Save
+        <button type="button" onClick={handleSaveClick} className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={saving || !formIsValid}>
+          {saving ? (<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>) : (<ButtonIcon type="save" />)} Save
         </button>
       </div>
     </form>);

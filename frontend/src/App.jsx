@@ -13,6 +13,7 @@ import AssetStateTable from './pages/master/asset-state/AssetStateTable';
 import SettingsPage from './components/SettingsPage';
 import ProfilePage from './pages/users/profile/ProfilePage';
 import UserManagementPage from './pages/users/user-management/UserManagementPage';
+import ManageRolePage from './pages/users/user-management/ManageRolePage';
 import Dashboard from './components/dashboard/Dashboard';
 import Login from './pages/users/auth/Login';
 import Signup from './pages/users/auth/Signup';
@@ -231,12 +232,12 @@ function App() {
         }
     };
     const route = normalizePath(location.pathname);
-    const activePath = route.startsWith('/assets') ? '/assets' : route;
+    const activePath = route.startsWith('/assets') ? '/assets' : route.startsWith('/users/manage-role') ? '/user-management' : route;
     const displayName = user?.full_name || 'User';
     const displayEmail = user?.email || '';
-    const isAdminUser = displayEmail === 'admin@virtualemployee.com';
+    const isAdminUser = user?.role_name === 'Admin' || user?.role === 'Admin';
     const visibleSidebarItems = isAdminUser
-        ? [...sidebarItems, { label: 'User Management', path: '/user-management', icon: 'users' }]
+        ? [...sidebarItems, { label: 'Users', path: '/user-management', icon: 'users' }]
         : sidebarItems;
     const firstName = displayName.split(' ').filter(Boolean)[0] || displayName;
     const userInitials = displayName
@@ -507,13 +508,14 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/settings" element={<SettingsPage onNavigate={navigate}/>} />
-            <Route path="/settings/assets" element={<AssetCustomizationRoute />} />
-            <Route path="/settings/assets/:tab" element={<AssetCustomizationRoute />} />
+            <Route path="/settings" element={isAdminUser ? <SettingsPage onNavigate={navigate}/> : <Navigate to="/dashboard" replace />} />
+            <Route path="/settings/assets" element={isAdminUser ? <AssetCustomizationRoute /> : <Navigate to="/dashboard" replace />} />
+            <Route path="/settings/assets/:tab" element={isAdminUser ? <AssetCustomizationRoute /> : <Navigate to="/dashboard" replace />} />
             <Route path="/assets" element={<AllAssetsPage />} />
             <Route path="/assets/:id" element={<AssetDetailsPage />} />
             <Route path="/profile" element={<ProfilePage onAuthChange={handleAuthChange}/>} />
             <Route path="/user-management" element={isAdminUser ? <UserManagementPage currentUser={user} /> : <Navigate to="/dashboard" replace />} />
+            <Route path="/users/manage-role/:id" element={isAdminUser ? <ManageRolePage /> : <Navigate to="/dashboard" replace />} />
             <Route path="/helpdesk" element={<HelpdeskPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
