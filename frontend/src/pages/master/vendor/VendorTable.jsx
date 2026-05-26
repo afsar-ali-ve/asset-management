@@ -352,12 +352,8 @@ const VendorTable = () => {
                     event.stopPropagation();
                     setActionRow(vendor);
                     setActionAnchorEl(event.currentTarget);
-                }} className="text-slate-400 hover:text-slate-600 rounded-full p-2 hover:bg-slate-100 focus:outline-none" type="button" aria-label="Actions">
-                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect y="4" width="20" height="2" rx="1" fill="currentColor"/>
-                            <rect y="9" width="20" height="2" rx="1" fill="currentColor"/>
-                            <rect y="14" width="20" height="2" rx="1" fill="currentColor"/>
-                          </svg>
+                }} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" type="button" aria-label="Actions">
+                          <ButtonIcon type="menu" />
                         </button>
                       </td>
                       {visibleColumns.includes('name') && <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-900" style={getColumnStyle('name')}>{vendor.name}</td>}

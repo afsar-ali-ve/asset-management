@@ -52,8 +52,6 @@ const ProductTypeTable = () => {
     const [filterMenuField, setFilterMenuField] = useState(null);
     const [columnFilters, setColumnFilters] = useState({});
     const [draftColumnFilter, setDraftColumnFilter] = useState(DEFAULT_COLUMN_FILTER);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
     const [sortField, setSortField] = useState('display_name');
     const [sortDirection, setSortDirection] = useState('asc');
     const [expandedProductTypeIds, setExpandedProductTypeIds] = useState(new Set());
@@ -159,7 +157,6 @@ const ProductTypeTable = () => {
         setFilterMenuField(null);
         setDraftColumnFilter(DEFAULT_COLUMN_FILTER);
         setVisibleColumns(allColumns.map((column) => column.field));
-        setCurrentPage(1);
     };
     const toggleProductType = (id) => {
         setExpandedProductTypeIds((currentIds) => {
@@ -191,7 +188,6 @@ const ProductTypeTable = () => {
             },
         }));
         setFilterMenuField(null);
-        setCurrentPage(1);
     };
     const handleResetColumnFilter = (field) => {
         setColumnFilters((prev) => {
@@ -201,7 +197,6 @@ const ProductTypeTable = () => {
         });
         setDraftColumnFilter(DEFAULT_COLUMN_FILTER);
         setFilterMenuField(null);
-        setCurrentPage(1);
     };
     const actionMenuStyle = actionAnchorEl
         ? {
@@ -276,7 +271,7 @@ const ProductTypeTable = () => {
         sortNodes(roots);
         return roots;
     }, [filteredProductTypes, sortDirection, sortField]);
-    const visibleProductTypeRows = useMemo(() => {
+    const flattenProductTypeRows = useCallback((nodes) => {
         const rows = [];
         const addRows = (nodes, level = 0) => {
             nodes.forEach((node) => {
@@ -286,9 +281,9 @@ const ProductTypeTable = () => {
                 }
             });
         };
-        addRows(productTypeTree);
+        addRows(nodes);
         return rows;
-    }, [expandedProductTypeIds, productTypeTree]);
+    }, [expandedProductTypeIds]);
     const expandableProductTypeIds = useMemo(() => {
         const ids = [];
         const collectIds = (nodes) => {
@@ -303,28 +298,13 @@ const ProductTypeTable = () => {
         return ids;
     }, [productTypeTree]);
     const allTreeRowsExpanded = expandableProductTypeIds.length > 0 && expandableProductTypeIds.every((id) => expandedProductTypeIds.has(id));
+    useEffect(() => {
+        setExpandedProductTypeIds(new Set(expandableProductTypeIds));
+    }, [expandableProductTypeIds]);
     const handleToggleAllRows = () => {
         setExpandedProductTypeIds(allTreeRowsExpanded ? new Set() : new Set(expandableProductTypeIds));
-        setCurrentPage(1);
     };
-    const totalPages = Math.max(1, Math.ceil(visibleProductTypeRows.length / pageSize));
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedData = visibleProductTypeRows.slice(startIndex, endIndex);
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
-        }
-    }, [currentPage, totalPages]);
-    const handlePageChange = (page) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-    const handlePageSizeChange = (e) => {
-        setPageSize(parseInt(e.target.value));
-        setCurrentPage(1);
-    };
+    const productTypeRows = flattenProductTypeRows(productTypeTree);
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
@@ -333,7 +313,6 @@ const ProductTypeTable = () => {
             setSortField(field);
             setSortDirection('asc');
         }
-        setCurrentPage(1);
     };
     const renderColumnHeader = (field, label) => {
         const hasFilter = Boolean(columnFilters[field]);
@@ -387,7 +366,6 @@ const ProductTypeTable = () => {
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <select value={activeFilter} onChange={(e) => {
             setActiveFilter(e.target.value);
-            setCurrentPage(1);
         }} className="w-full md:w-64 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
             {filterOptions.map((option) => (<option key={option} value={option}>
                 {option}
@@ -428,7 +406,7 @@ const ProductTypeTable = () => {
           <span className="h-10 w-10 animate-spin rounded-full border-b-2 border-t-2 border-blue-600"></span>
         </div>)}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="max-h-[calc(100vh-360px)] min-h-[240px] overflow-x-auto overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[700px] table-fixed divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
@@ -441,18 +419,14 @@ const ProductTypeTable = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
-            {paginatedData.map((item) => (<tr key={item.id} className={`${item.hasChildren ? 'bg-white' : ''} hover:bg-slate-50 transition-colors duration-150`}>
+            {productTypeRows.map((item) => (<tr key={item.id} className={`${item.hasChildren ? 'bg-white' : ''} hover:bg-slate-50 transition-colors duration-150`}>
                 <td className="w-12 px-4 py-4 whitespace-nowrap text-sm text-slate-900">
                   <button onClick={(event) => {
                 event.stopPropagation();
                 setActionRow(item);
                 setActionAnchorEl(event.currentTarget);
-            }} className="text-slate-400 hover:text-slate-600" aria-label="Actions" type="button">
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect y="4" width="20" height="2" rx="1" fill="currentColor"/>
-                      <rect y="9" width="20" height="2" rx="1" fill="currentColor"/>
-                      <rect y="14" width="20" height="2" rx="1" fill="currentColor"/>
-                    </svg>
+            }} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Actions" type="button">
+                    <ButtonIcon type="menu" />
                   </button>
                 </td>
                 {visibleColumns.includes('display_name') && <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-900" style={getColumnStyle('display_name')}>
@@ -488,7 +462,7 @@ const ProductTypeTable = () => {
                 {visibleColumns.includes('asset_category_type') && <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-900" style={getColumnStyle('asset_category_type')}>{item.asset_category_type}</td>}
                 {visibleColumns.includes('description') && <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-900" style={getColumnStyle('description')}>{item.description}</td>}
               </tr>))}
-            {paginatedData.length === 0 && (<tr>
+            {productTypeRows.length === 0 && (<tr>
                 <td colSpan={visibleColumns.length + 1} className="px-6 py-8 text-center text-sm text-slate-500">
                   No product types found
                 </td>
@@ -520,31 +494,6 @@ const ProductTypeTable = () => {
           </button>
         </div>)}
 
-      <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-700">
-          <span>Page Size:</span>
-          <select value={pageSize} onChange={handlePageSizeChange} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-          <span>
-            {visibleProductTypeRows.length === 0 ? '0 to 0 of 0' : `${startIndex + 1} to ${Math.min(endIndex, visibleProductTypeRows.length)} of ${visibleProductTypeRows.length}`}
-          </span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" type="button">
-              <ButtonIcon type="previous" />
-            </button>
-            <span className="text-sm text-slate-600">Page {currentPage} of {totalPages === 0 ? 1 : totalPages}</span>
-            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" type="button">
-              <ButtonIcon type="next" />
-            </button>
-          </div>
-        </div>
-      </div>
       <Modal
         open={open}
         title={childParent ? 'Create Child Product Type' : (editing ? 'Edit Product Type' : 'Add Product Type')}
