@@ -376,14 +376,8 @@ const ProductTable = () => {
                 event.stopPropagation();
                 setActionRow(item);
                 setActionAnchorEl(event.currentTarget);
-            }} className="text-slate-400 hover:text-slate-600" aria-label="Actions">
-                    <span style={{ display: 'inline-block', lineHeight: 0 }}>
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect y="4" width="20" height="2" rx="1" fill="currentColor"/>
-                        <rect y="9" width="20" height="2" rx="1" fill="currentColor"/>
-                        <rect y="14" width="20" height="2" rx="1" fill="currentColor"/>
-                      </svg>
-                    </span>
+            }} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Actions">
+                    <ButtonIcon type="menu" />
                   </button>
                 </td>
                 {visibleColumns.includes('name') && <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900" style={getColumnStyle('name')}>{item.name}</td>}

@@ -297,21 +297,7 @@ function App() {
                 </button>);
         })}
           </nav>
-          <div className="border-t border-white/10 p-3">
-            <div className={`flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300 ${sidebarOpen ? '' : 'justify-center'}`}>
-              {user?.profile_image ? (
-                <img src={user.profile_image} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
-              ) : (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-700 text-xs font-semibold text-white">
-                  {userInitials}
-                </div>
-              )}
-              <div className={`min-w-0 transition-all duration-200 ${sidebarOpen ? 'opacity-100' : 'w-0 overflow-hidden opacity-0'}`}>
-                <div className="truncate text-sm font-semibold text-white">{displayName}</div>
-                {displayEmail && <p className="mt-0.5 truncate text-xs text-slate-400">{displayEmail}</p>}
-              </div>
-            </div>
-          </div>
+         
         </div>
       </div>
 
@@ -508,7 +494,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/settings" element={isAdminUser ? <SettingsPage onNavigate={navigate}/> : <Navigate to="/dashboard" replace />} />
+            <Route path="/settings" element={<SettingsPage onNavigate={navigate} isAdminUser={isAdminUser}/>} />
             <Route path="/settings/assets" element={isAdminUser ? <AssetCustomizationRoute /> : <Navigate to="/dashboard" replace />} />
             <Route path="/settings/assets/:tab" element={isAdminUser ? <AssetCustomizationRoute /> : <Navigate to="/dashboard" replace />} />
             <Route path="/assets" element={<AllAssetsPage />} />
