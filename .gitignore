@@ -2,7 +2,6 @@ node_modules
 dist
 build
 .next
-.vercel
 .cache
 frontend/node_modules
 backend/node_modules

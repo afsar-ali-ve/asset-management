@@ -10,7 +10,7 @@ import SoftwareCategoryTable from './pages/master/software-category/SoftwareCate
 import ManufacturerTable from './pages/master/manufacturer/ManufacturerTable';
 import SoftwareLicenseTypeTable from './pages/master/software-license-type/SoftwareLicenseTypeTable';
 import AssetStateTable from './pages/master/asset-state/AssetStateTable';
-import SettingsPage from './components/SettingsPage';
+import SettingsPage from './pages/settings/SettingsPage';
 import ProfilePage from './pages/users/profile/ProfilePage';
 import UserManagementPage from './pages/users/user-management/UserManagementPage';
 import ManageRolePage from './pages/users/user-management/ManageRolePage';

@@ -23,7 +23,6 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   ...(process.env.CORS_ORIGIN || '').split(','),
   ...(process.env.FRONTEND_URL || '').split(','),
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
 ]
   .map((origin) => origin.trim())
   .filter(Boolean);

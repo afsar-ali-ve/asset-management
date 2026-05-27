@@ -369,12 +369,16 @@ const UserManagementPage = ({ currentUser }) => {
     setFormError('');
     setSuccess('');
     try {
-      const response = modalMode === 'edit'
+      const isUpdateMode = modalMode === 'edit' || modalMode === 'view';
+      const response = isUpdateMode
         ? await updateAdminUser(editingUser.id, payload)
         : await createAdminUser(payload);
-      setUsers((current) => modalMode === 'edit'
+      setUsers((current) => isUpdateMode
         ? current.map((item) => (item.id === response.data.user.id ? response.data.user : item))
         : [response.data.user, ...current]);
+      if (isUpdateMode) {
+        await loadData();
+      }
       setSuccess(response.data.message || 'User saved successfully');
       setModalMode(null);
       setEditingUser(null);
