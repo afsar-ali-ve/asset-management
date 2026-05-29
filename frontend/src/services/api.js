@@ -19,6 +19,9 @@ const USER_API_BASE_URL = apiUrl('/api/user');
 const USERS_API_BASE_URL = apiUrl('/api/users');
 const DEPARTMENTS_API_BASE_URL = apiUrl('/api/departments');
 const DASHBOARD_API_BASE_URL = apiUrl('/api/dashboard');
+const TASK_BOARDS_API_BASE_URL = apiUrl('/api/task-boards');
+const TASK_LISTS_API_BASE_URL = apiUrl('/api/task-lists');
+const TASK_CARDS_API_BASE_URL = apiUrl('/api/task-cards');
 
 const isAuthEndpoint = (url = '') => String(url).includes('/api/auth/');
 const isChangePasswordEndpoint = (url = '') => String(url).includes('/api/user/change-password');
@@ -123,6 +126,20 @@ export const getDepartments = () => axios.get(DEPARTMENTS_API_BASE_URL);
 export const getDashboardStats = () => axios.get(`${DASHBOARD_API_BASE_URL}/stats`, getAuthConfig());
 export const updateProfile = (data) => axios.put(`${USER_API_BASE_URL}/profile`, data, getAuthConfig());
 export const changePassword = (data) => axios.put(`${USER_API_BASE_URL}/change-password`, data, getAuthConfig());
+// Task Management APIs
+export const getTaskBoards = () => axios.get(TASK_BOARDS_API_BASE_URL, getAuthConfig());
+export const createTaskBoard = (data) => axios.post(TASK_BOARDS_API_BASE_URL, data, getAuthConfig());
+export const getTaskBoardAccessStatus = (boardId) => axios.get(`${TASK_BOARDS_API_BASE_URL}/${boardId}/access-status`, getAuthConfig());
+export const requestTaskBoardAccess = (boardId) => axios.post(`${TASK_BOARDS_API_BASE_URL}/${boardId}/request-access`, {}, getAuthConfig());
+export const getTaskBoardLists = (boardId) => axios.get(`${TASK_BOARDS_API_BASE_URL}/${boardId}/lists`, getAuthConfig());
+export const createTaskList = (data) => axios.post(TASK_LISTS_API_BASE_URL, data, getAuthConfig());
+export const getTaskCards = (listId) => axios.get(`${TASK_LISTS_API_BASE_URL}/${listId}/cards`, getAuthConfig());
+export const createTaskCard = (data) => axios.post(TASK_CARDS_API_BASE_URL, data, getAuthConfig());
+export const moveTaskCard = (id, data) => axios.put(`${TASK_CARDS_API_BASE_URL}/${id}/move`, data, getAuthConfig());
+export const reorderTaskCards = (data) => axios.put(`${TASK_CARDS_API_BASE_URL}/reorder`, data, getAuthConfig());
+export const getBoardAccessRequests = () => axios.get(apiUrl('/api/admin/board-access-requests'), getAuthConfig());
+export const approveBoardAccessRequest = (requestId, data = {}) => axios.put(apiUrl(`/api/admin/board-access-requests/${requestId}/approve`), data, getAuthConfig());
+export const rejectBoardAccessRequest = (requestId, data = {}) => axios.put(apiUrl(`/api/admin/board-access-requests/${requestId}/reject`), data, getAuthConfig());
 // Product APIs
 export const getProducts = () => axios.get(PRODUCTS_API_BASE_URL);
 export const getProduct = (id) => axios.get(`${PRODUCTS_API_BASE_URL}/${id}`);

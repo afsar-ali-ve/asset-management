@@ -225,6 +225,15 @@ const runMigrations = async () => {
       }
     }
 
+    // Run task management migration
+    try {
+      const taskManagementSql = fs.readFileSync(path.join(__dirname, './migrations/create_task_management.sql'), 'utf8');
+      await pool.query(taskManagementSql);
+      console.log('Task management tables ready');
+    } catch (err) {
+      throw err;
+    }
+
     console.log('All migrations completed successfully');
   } catch (err) {
     console.error('Migration failed:', err);
