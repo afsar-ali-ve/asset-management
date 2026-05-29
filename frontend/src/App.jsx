@@ -11,6 +11,9 @@ import ManufacturerTable from './pages/master/manufacturer/ManufacturerTable';
 import SoftwareLicenseTypeTable from './pages/master/software-license-type/SoftwareLicenseTypeTable';
 import AssetStateTable from './pages/master/asset-state/AssetStateTable';
 import SettingsPage from './pages/settings/SettingsPage';
+import TaskManagementPage from './pages/tasks/TaskManagementPage';
+import TaskBoardPage from './pages/tasks/TaskBoardPage';
+import BoardAccessRequestsPage from './pages/tasks/BoardAccessRequestsPage';
 import ProfilePage from './pages/users/profile/ProfilePage';
 import UserManagementPage from './pages/users/user-management/UserManagementPage';
 import ManageRolePage from './pages/users/user-management/ManageRolePage';
@@ -54,12 +57,22 @@ const NavIcon = ({ type }) => {
             <path d="M16 11.25C17.52 11.25 18.75 10.02 18.75 8.5C18.75 6.98 17.52 5.75 16 5.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             <path d="M15.75 14.75C17.94 14.94 19.56 16.46 20.25 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>),
+        tasks: (<svg {...commonProps}>
+            <path d="M6.25 5.25H17.75C18.58 5.25 19.25 5.92 19.25 6.75V17.25C19.25 18.08 18.58 18.75 17.75 18.75H6.25C5.42 18.75 4.75 18.08 4.75 17.25V6.75C4.75 5.92 5.42 5.25 6.25 5.25Z" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M8 9H16M8 12H14M8 15H12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            <path d="M8 3.75V6.75M16 3.75V6.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>),
+        requests: (<svg {...commonProps}>
+            <path d="M5.75 4.75H18.25C18.8 4.75 19.25 5.2 19.25 5.75V14.25C19.25 14.8 18.8 15.25 18.25 15.25H9L5 19.25V5.75C5 5.2 5.2 4.75 5.75 4.75Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+            <path d="M8.5 8.75H15.5M8.5 11.25H13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>),
     };
     return icons[type] || icons.dashboard;
 };
 const sidebarItems = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     { label: 'Assets', path: '/assets', icon: 'assets' },
+    { label: 'Task Management', path: '/tasks', icon: 'tasks' },
 ];
 const THEME_STORAGE_KEY = 'asset_management_theme';
 const SIDEBAR_STORAGE_KEY = 'asset_management_sidebar_open';
@@ -232,12 +245,24 @@ function App() {
         }
     };
     const route = normalizePath(location.pathname);
-    const activePath = route.startsWith('/assets') ? '/assets' : route.startsWith('/users/manage-role') ? '/user-management' : route;
+    const activePath = route.startsWith('/assets')
+        ? '/assets'
+        : route.startsWith('/tasks')
+            ? '/tasks'
+            : route.startsWith('/board-access-requests')
+                ? '/board-access-requests'
+                : route.startsWith('/users/manage-role')
+                ? '/user-management'
+                : route;
     const displayName = user?.full_name || 'User';
     const displayEmail = user?.email || '';
     const isAdminUser = user?.role_name === 'Admin' || user?.role === 'Admin';
     const visibleSidebarItems = isAdminUser
-        ? [...sidebarItems, { label: 'Users', path: '/user-management', icon: 'users' }]
+        ? [
+            ...sidebarItems,
+            { label: 'Board Requests', path: '/board-access-requests', icon: 'requests' },
+            { label: 'Users', path: '/user-management', icon: 'users' },
+        ]
         : sidebarItems;
     const firstName = displayName.split(' ').filter(Boolean)[0] || displayName;
     const userInitials = displayName
@@ -499,6 +524,9 @@ function App() {
             <Route path="/settings/assets/:tab" element={isAdminUser ? <AssetCustomizationRoute /> : <Navigate to="/dashboard" replace />} />
             <Route path="/assets" element={<AllAssetsPage />} />
             <Route path="/assets/:id" element={<AssetDetailsPage />} />
+            <Route path="/tasks" element={<TaskManagementPage />} />
+            <Route path="/tasks/boards/:boardId" element={<TaskBoardPage />} />
+            <Route path="/board-access-requests" element={isAdminUser ? <BoardAccessRequestsPage /> : <Navigate to="/dashboard" replace />} />
             <Route path="/profile" element={<ProfilePage onAuthChange={handleAuthChange}/>} />
             <Route path="/user-management" element={isAdminUser ? <UserManagementPage currentUser={user} /> : <Navigate to="/dashboard" replace />} />
             <Route path="/users/manage-role/:id" element={isAdminUser ? <ManageRolePage /> : <Navigate to="/dashboard" replace />} />
