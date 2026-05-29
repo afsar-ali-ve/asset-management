@@ -14,6 +14,28 @@ const profileTabs = [
   { id: 'password', label: 'Change Password' },
 ];
 
+const requiredMark = <span className="ml-1 text-red-500" aria-hidden="true">*</span>;
+const passwordInputClass = (hasError) =>
+  `mt-2 block w-full rounded-md border bg-white py-2 pl-3 pr-10 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 ${
+    hasError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20'
+  }`;
+
+const EyeIcon = ({ visible }) => (
+  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    {visible ? (
+      <>
+        <path d="M2.75 10C4 6.9 6.55 5.25 10 5.25C13.45 5.25 16 6.9 17.25 10C16 13.1 13.45 14.75 10 14.75C6.55 14.75 4 13.1 2.75 10Z" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M10 12.25C11.24 12.25 12.25 11.24 12.25 10C12.25 8.76 11.24 7.75 10 7.75C8.76 7.75 7.75 8.76 7.75 10C7.75 11.24 8.76 12.25 10 12.25Z" stroke="currentColor" strokeWidth="1.5"/>
+      </>
+    ) : (
+      <>
+        <path d="M3.25 3.25L16.75 16.75" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        <path d="M8.35 5.52C8.88 5.34 9.43 5.25 10 5.25C13.45 5.25 16 6.9 17.25 10C16.82 11.07 16.23 11.97 15.5 12.68M12.68 14.18C11.86 14.56 10.97 14.75 10 14.75C6.55 14.75 4 13.1 2.75 10C3.37 8.47 4.31 7.28 5.54 6.47" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    )}
+  </svg>
+);
+
 const normalizeUser = (user) => {
   if (!user) {
     return null;
@@ -79,6 +101,12 @@ const ProfilePage = ({ onAuthChange }) => {
     };
   });
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [visiblePasswords, setVisiblePasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -174,6 +202,34 @@ const ProfilePage = ({ onAuthChange }) => {
     setSuccess('');
   };
 
+  const updatePasswordField = (field, value) => {
+    setPasswordForm((current) => ({ ...current, [field]: value }));
+    setPasswordErrors((current) => ({ ...current, [field]: '' }));
+    setError('');
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setVisiblePasswords((current) => ({ ...current, [field]: !current[field] }));
+  };
+
+  const validatePasswordForm = () => {
+    const nextErrors = {};
+    if (!passwordForm.currentPassword) nextErrors.currentPassword = 'Current password is required';
+    if (!passwordForm.newPassword) nextErrors.newPassword = 'New password is required';
+    if (!passwordForm.confirmPassword) nextErrors.confirmPassword = 'Confirm new password is required';
+    if (passwordForm.newPassword && passwordForm.newPassword.length < 6) {
+      nextErrors.newPassword = 'New password must be at least 6 characters';
+    }
+    if (passwordForm.currentPassword && passwordForm.newPassword && passwordForm.currentPassword === passwordForm.newPassword) {
+      nextErrors.newPassword = 'New password must be different from current password';
+    }
+    if (passwordForm.newPassword && passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword) {
+      nextErrors.confirmPassword = 'New password and confirm password do not match';
+    }
+    setPasswordErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleProfileImageFile = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -229,35 +285,69 @@ const ProfilePage = ({ onAuthChange }) => {
     setError('');
     setSuccess('');
 
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setError('All password fields are required');
-      return;
-    }
-    if (passwordForm.newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
-      return;
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError('New passwords do not match');
+    if (!validatePasswordForm()) {
       return;
     }
 
     setSavingPassword(true);
     try {
       const response = await changePassword({
-        current_password: passwordForm.currentPassword,
-        new_password: passwordForm.newPassword,
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
       });
       setPasswordForm(emptyPasswordForm);
-      setSuccess(response.data.message || 'Password changed successfully');
+      setPasswordErrors({});
+      setVisiblePasswords({
+        currentPassword: false,
+        newPassword: false,
+        confirmPassword: false,
+      });
+      setSuccess(response.data.message || 'Password updated successfully');
+      window.setTimeout(() => {
+        clearStoredAuth();
+        onAuthChange?.();
+        navigate('/login', { replace: true });
+      }, 1200);
     } catch (saveError) {
-      if (!handleAuthFailure(saveError)) {
-        setError(saveError.response?.data?.error || 'Unable to change password');
+      const message = saveError.response?.data?.error || 'Unable to change password';
+      if (message === 'Current password is incorrect') {
+        setPasswordErrors((current) => ({ ...current, currentPassword: message }));
+        setError(message);
+      } else if (!handleAuthFailure(saveError)) {
+        setError(message);
       }
     } finally {
       setSavingPassword(false);
     }
   };
+
+  const renderPasswordInput = ({ id, label, field, autoComplete }) => (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-700">
+        {label}{requiredMark}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={visiblePasswords[field] ? 'text' : 'password'}
+          value={passwordForm[field]}
+          onChange={(event) => updatePasswordField(field, event.target.value)}
+          autoComplete={autoComplete}
+          aria-invalid={Boolean(passwordErrors[field])}
+          className={passwordInputClass(passwordErrors[field])}
+        />
+        <button
+          type="button"
+          onClick={() => togglePasswordVisibility(field)}
+          className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label={visiblePasswords[field] ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        >
+          <EyeIcon visible={visiblePasswords[field]} />
+        </button>
+      </div>
+      {passwordErrors[field] && <p className="mt-1 text-xs font-medium text-red-600">{passwordErrors[field]}</p>}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -457,54 +547,35 @@ const ProfilePage = ({ onAuthChange }) => {
         </div>
         <form onSubmit={handlePasswordSubmit} className="space-y-5 p-5">
           <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label htmlFor="currentPassword" className="block text-sm font-medium text-slate-700">
-                Current Password
-              </label>
-              <input
-                id="currentPassword"
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))
-                }
-                className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-slate-700">
-                New Password
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))
-                }
-                className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))
-                }
-                className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
+            {renderPasswordInput({
+              id: 'currentPassword',
+              label: 'Current Password',
+              field: 'currentPassword',
+              autoComplete: 'current-password',
+            })}
+            {renderPasswordInput({
+              id: 'newPassword',
+              label: 'New Password',
+              field: 'newPassword',
+              autoComplete: 'new-password',
+            })}
+            {renderPasswordInput({
+              id: 'confirmPassword',
+              label: 'Confirm New Password',
+              field: 'confirmPassword',
+              autoComplete: 'new-password',
+            })}
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => setPasswordForm(emptyPasswordForm)}
+              onClick={() => {
+                setPasswordForm(emptyPasswordForm);
+                setPasswordErrors({});
+                setError('');
+                setSuccess('');
+              }}
               className="inline-flex justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               Cancel
@@ -514,7 +585,7 @@ const ProfilePage = ({ onAuthChange }) => {
               disabled={savingPassword}
               className="inline-flex justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {savingPassword ? 'Saving...' : 'Save Changes'}
+              {savingPassword ? 'Saving...' : 'Update Password'}
             </button>
           </div>
         </form>

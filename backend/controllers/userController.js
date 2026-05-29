@@ -24,7 +24,17 @@ const normalizeStatus = (status, isActive) => {
   if (typeof isActive === 'boolean') {
     return isActive ? 'Active' : 'Inactive';
   }
-  return status === 'Inactive' ? 'Inactive' : 'Active';
+  if (typeof isActive === 'string') {
+    const normalizedIsActive = isActive.trim().toLowerCase();
+    if (normalizedIsActive === 'true') return 'Active';
+    if (normalizedIsActive === 'false') return 'Inactive';
+  }
+  if (typeof status === 'string') {
+    const normalizedStatus = status.trim().toLowerCase();
+    if (normalizedStatus === 'inactive' || normalizedStatus === 'false') return 'Inactive';
+    if (normalizedStatus === 'active' || normalizedStatus === 'true') return 'Active';
+  }
+  return 'Active';
 };
 const allowedRoleNames = ['Admin', 'Basic'];
 
@@ -126,6 +136,7 @@ const changePassword = async (req, res) => {
   try {
     const currentPassword = req.body.current_password || req.body.currentPassword;
     const newPassword = req.body.new_password || req.body.newPassword;
+    const userId = req.user.id || req.user.userId || req.user.sub;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current password and new password are required' });
@@ -134,23 +145,33 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 6 characters' });
     }
 
-    const result = await pool.query('SELECT id, password FROM users WHERE id = $1', [req.user.id]);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const result = await pool.query('SELECT id, password FROM users WHERE id = $1', [userId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, result.rows[0].password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ error: 'New password must be different from current password' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await pool.query('UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [
+    const updateResult = await pool.query('UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [
       hashedPassword,
-      req.user.id,
+      userId,
     ]);
+    if (updateResult.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    res.json({ message: 'Password changed successfully' });
+    res.json({ message: 'Password updated successfully' });
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ error: 'Unable to change password' });
@@ -201,7 +222,7 @@ const createUser = async (req, res) => {
     const password = req.body.password;
     const department = req.body.department || null;
     const roleId = req.body.role_id || req.body.roleId || null;
-    const status = normalizeStatus(req.body.status, req.body.is_active ?? req.body.isActive);
+    const status = normalizeStatus(req.body.status, req.body.is_active ?? req.body.isActive ?? req.body.IsActive);
     const isActive = status === 'Active';
 
     if (!fullName || !email || !password) {
@@ -250,7 +271,7 @@ const updateUser = async (req, res) => {
     const password = req.body.password;
     const department = req.body.department || null;
     const roleId = req.body.role_id || req.body.roleId || null;
-    const status = normalizeStatus(req.body.status, req.body.is_active ?? req.body.isActive);
+    const status = normalizeStatus(req.body.status, req.body.is_active ?? req.body.isActive ?? req.body.IsActive);
     const isActive = status === 'Active';
 
     if (!fullName || !email) {
@@ -282,6 +303,9 @@ const updateUser = async (req, res) => {
 
     if (id === req.user.id && !isActive) {
       return res.status(400).json({ error: 'You cannot deactivate your own account' });
+    }
+    if (existingResult.rows[0].email === 'admin@virtualemployee.com' && !isActive) {
+      return res.status(400).json({ error: 'Default admin account cannot be deactivated' });
     }
 
     const values = [fullName.trim(), email, department, roleId, status, isActive, id];

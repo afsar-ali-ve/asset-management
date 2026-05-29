@@ -21,6 +21,7 @@ const DEPARTMENTS_API_BASE_URL = apiUrl('/api/departments');
 const DASHBOARD_API_BASE_URL = apiUrl('/api/dashboard');
 
 const isAuthEndpoint = (url = '') => String(url).includes('/api/auth/');
+const isChangePasswordEndpoint = (url = '') => String(url).includes('/api/user/change-password');
 
 axios.interceptors.request.use((config) => {
     if (isAuthEndpoint(config.url)) {
@@ -46,7 +47,9 @@ axios.interceptors.request.use((config) => {
 axios.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url)) {
+        const isCurrentPasswordError = isChangePasswordEndpoint(error.config?.url)
+            && error.response?.data?.error === 'Current password is incorrect';
+        if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url) && !isCurrentPasswordError) {
             logout({ sessionExpired: true });
             window.location.replace('/login');
         }
