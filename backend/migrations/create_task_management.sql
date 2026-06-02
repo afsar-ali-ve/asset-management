@@ -11,10 +11,28 @@ CREATE TABLE IF NOT EXISTS task_boards (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(180) NOT NULL,
   description TEXT,
+  visibility VARCHAR(24) NOT NULL DEFAULT 'Private',
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT task_boards_visibility_check CHECK (visibility IN ('Private', 'Public'))
 );
+
+ALTER TABLE task_boards ADD COLUMN IF NOT EXISTS visibility VARCHAR(24) NOT NULL DEFAULT 'Private';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_name = 'task_boards_visibility_check'
+      AND table_name = 'task_boards'
+  ) THEN
+    ALTER TABLE task_boards
+      ADD CONSTRAINT task_boards_visibility_check
+      CHECK (visibility IN ('Private', 'Public'));
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS task_lists (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

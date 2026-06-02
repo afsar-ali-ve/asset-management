@@ -1,6 +1,9 @@
 const pool = require('../config/db');
 
 const DEFAULT_LISTS = ['To Do', 'In Progress', 'Review', 'Done'];
+const BOARD_VISIBILITIES = ['Private', 'Public'];
+const BOARD_MEMBER_ROLES = ['Viewer', 'Member', 'Admin'];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const isAdmin = (user) => user?.role_name === 'Admin';
 
@@ -58,7 +61,8 @@ const canAccessBoard = async (boardId, user) => {
      FROM task_boards b
      WHERE b.id = $1
        AND (
-         b.created_by = $2
+         b.visibility = 'Public'
+         OR b.created_by = $2
          OR EXISTS (
            SELECT 1
            FROM task_board_members m
@@ -92,6 +96,7 @@ const getTaskBoards = async (req, res) => {
     const accessWhere = isAdmin(user)
       ? ''
       : `WHERE b.created_by = $1
+         OR b.visibility = 'Public'
          OR EXISTS (
            SELECT 1
            FROM task_board_members m
@@ -106,6 +111,7 @@ const getTaskBoards = async (req, res) => {
       `SELECT b.id,
               b.name,
               b.description,
+              b.visibility,
               b.created_by,
               b.created_at,
               b.updated_at,
@@ -138,16 +144,17 @@ const createTaskBoard = async (req, res) => {
 
     const name = req.body.name?.trim();
     const description = req.body.description?.trim() || null;
+    const visibility = BOARD_VISIBILITIES.includes(req.body.visibility) ? req.body.visibility : 'Private';
     if (!name) {
       return res.status(400).json({ error: 'Board name is required' });
     }
 
     await client.query('BEGIN');
     const boardResult = await client.query(
-      `INSERT INTO task_boards (name, description, created_by)
-       VALUES ($1, $2, $3)
-       RETURNING id, name, description, created_by, created_at, updated_at`,
-      [name, description, user.id]
+      `INSERT INTO task_boards (name, description, visibility, created_by)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, description, visibility, created_by, created_at, updated_at`,
+      [name, description, visibility, user.id]
     );
     const board = boardResult.rows[0];
 
@@ -172,6 +179,104 @@ const createTaskBoard = async (req, res) => {
     res.status(500).json({ error: 'Unable to create board' });
   } finally {
     client.release();
+  }
+};
+
+const updateTaskBoard = async (req, res) => {
+  try {
+    const user = await requireAdminUser(req, res);
+    if (!user) return;
+
+    const { boardId } = req.params;
+    const name = req.body.name?.trim();
+    const description = req.body.description?.trim() || null;
+    const visibility = req.body.visibility;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Board name is required' });
+    }
+    if (!BOARD_VISIBILITIES.includes(visibility)) {
+      return res.status(400).json({ error: 'Visibility must be Private or Public' });
+    }
+
+    const result = await pool.query(
+      `UPDATE task_boards
+       SET name = $1,
+           description = $2,
+           visibility = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4
+       RETURNING id, name, description, visibility, created_by, created_at, updated_at`,
+      [name, description, visibility, boardId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
+
+    res.json({ message: 'Board updated successfully', board: result.rows[0] });
+  } catch (error) {
+    console.error('Update task board error:', error);
+    res.status(500).json({ error: 'Unable to update board' });
+  }
+};
+
+const assignUserToBoard = async (req, res) => {
+  try {
+    const currentUser = await requireAdminUser(req, res);
+    if (!currentUser) return;
+
+    const { boardId } = req.params;
+    const email = req.body.email?.trim().toLowerCase();
+    const role = req.body.role;
+
+    if (!email || !EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: 'Valid user email is required' });
+    }
+    if (!BOARD_MEMBER_ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Board role must be Viewer, Member, or Admin' });
+    }
+
+    const boardResult = await pool.query('SELECT id FROM task_boards WHERE id = $1', [boardId]);
+    if (boardResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
+
+    const userResult = await pool.query(
+      `SELECT id, full_name, email, is_active
+       FROM users
+       WHERE LOWER(email) = $1`,
+      [email]
+    );
+    const user = userResult.rows[0];
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (!user.is_active) {
+      return res.status(400).json({ error: 'User account is inactive' });
+    }
+
+    const memberResult = await pool.query(
+      `INSERT INTO task_board_members (board_id, user_id, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (board_id, user_id)
+       DO UPDATE SET role = EXCLUDED.role, updated_at = CURRENT_TIMESTAMP
+       RETURNING id, board_id, user_id, role, created_at, updated_at`,
+      [boardId, user.id, role]
+    );
+
+    res.json({
+      message: 'Board assigned successfully',
+      member: memberResult.rows[0],
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error('Assign board user error:', error);
+    res.status(500).json({ error: 'Unable to assign board' });
   }
 };
 
@@ -622,6 +727,8 @@ const rejectBoardAccessRequest = async (req, res) => {
 module.exports = {
   getTaskBoards,
   createTaskBoard,
+  updateTaskBoard,
+  assignUserToBoard,
   getTaskLists,
   createTaskList,
   getTaskCards,
