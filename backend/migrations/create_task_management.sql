@@ -3,7 +3,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 DROP TABLE IF EXISTS task_activity_logs;
 DROP TABLE IF EXISTS task_card_labels;
 DROP TABLE IF EXISTS task_labels;
-DROP TABLE IF EXISTS task_card_attachments;
 DROP TABLE IF EXISTS task_card_checklists;
 
 CREATE TABLE IF NOT EXISTS task_boards (
@@ -70,6 +69,18 @@ CREATE TABLE IF NOT EXISTS task_card_comments (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS task_card_attachments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  card_id UUID NOT NULL REFERENCES task_cards(id) ON DELETE CASCADE,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  file_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(120) NOT NULL,
+  file_size INTEGER NOT NULL,
+  file_data BYTEA NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS task_board_access_requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   board_id UUID NOT NULL REFERENCES task_boards(id) ON DELETE CASCADE,
@@ -102,6 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_task_cards_list_id ON task_cards(list_id);
 CREATE INDEX IF NOT EXISTS idx_task_cards_assignee_id ON task_cards(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_task_cards_list_order ON task_cards(list_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_task_card_comments_card_id ON task_card_comments(card_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_task_card_attachments_card_id ON task_card_attachments(card_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_task_board_access_requests_board_status ON task_board_access_requests(board_id, status);
 CREATE INDEX IF NOT EXISTS idx_task_board_access_requests_user ON task_board_access_requests(requested_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_task_board_members_board_user ON task_board_members(board_id, user_id);

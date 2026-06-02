@@ -19,11 +19,13 @@ import Modal from '../../components/common/Modal';
 import ButtonIcon from '../../components/common/ButtonIcon';
 import {
   addTaskCardComment,
+  addTaskCardAttachment,
   createTaskCard,
   createTaskList,
   getAssignableUsers,
   getTaskBoardAccessStatus,
   getTaskBoardLists,
+  getTaskCardAttachments,
   getTaskCardComments,
   getTaskBoards,
   moveTaskCard,
@@ -47,6 +49,13 @@ const emptyCardDetailForm = {
   title: '',
   description: '',
 };
+
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
 
 const getPriorityClass = (priority) => {
   if (priority === 'Urgent') return 'bg-red-50 text-red-700';
@@ -239,8 +248,10 @@ const TaskBoardPage = () => {
   const [cardDetailForm, setCardDetailForm] = useState(emptyCardDetailForm);
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentSaving, setCommentSaving] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
 
   const loadBoard = useCallback(async () => {
     try {
@@ -327,6 +338,19 @@ const TaskBoardPage = () => {
     }
   }, []);
 
+  const loadCardAttachments = useCallback(async (cardId) => {
+    try {
+      setAttachmentsLoading(true);
+      const response = await getTaskCardAttachments(cardId);
+      setAttachments(response.data.attachments || []);
+    } catch (err) {
+      setAttachments([]);
+      setError(err.response?.data?.error || 'Unable to load attachments');
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  }, []);
+
   const openCardDetails = useCallback((card) => {
     setSelectedCard(card);
     setCardDetailForm({
@@ -335,10 +359,13 @@ const TaskBoardPage = () => {
     });
     setCommentText('');
     setComments([]);
+    setAttachments([]);
+    setAttachmentFiles([]);
     setError('');
     setDetailModalOpen(true);
     loadCardComments(card.id);
-  }, [loadCardComments]);
+    loadCardAttachments(card.id);
+  }, [loadCardAttachments, loadCardComments]);
 
   const saveCard = async (event) => {
     event.preventDefault();
@@ -384,6 +411,21 @@ const TaskBoardPage = () => {
         description: cardDetailForm.description,
       });
       const updatedCard = response.data.card;
+      if (commentText.trim()) {
+        await addTaskCardComment(selectedCard.id, { comment: commentText });
+        setCommentText('');
+      }
+      if (attachmentFiles.length > 0) {
+        for (const file of attachmentFiles) {
+          const dataUrl = await fileToBase64(file);
+          await addTaskCardAttachment(selectedCard.id, {
+            file_name: file.name,
+            mime_type: file.type || 'application/octet-stream',
+            data_url: dataUrl,
+          });
+        }
+        setAttachmentFiles([]);
+      }
       setLists((currentLists) => currentLists.map((list) => ({
         ...list,
         cards: (list.cards || []).map((card) => (
@@ -391,32 +433,15 @@ const TaskBoardPage = () => {
         )),
       })));
       setSelectedCard((current) => ({ ...(current || {}), ...updatedCard }));
-      setNotice('Task updated successfully');
+      await Promise.all([
+        loadCardComments(selectedCard.id),
+        loadCardAttachments(selectedCard.id),
+      ]);
+      setNotice('Card saved successfully');
     } catch (err) {
-      setError(err.response?.data?.error || 'Unable to update task');
+      setError(err.response?.data?.error || 'Unable to save card');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const addComment = async (event) => {
-    event.preventDefault();
-    if (!commentText.trim()) {
-      setError('Comment is required');
-      return;
-    }
-
-    try {
-      setCommentSaving(true);
-      setError('');
-      await addTaskCardComment(selectedCard.id, { comment: commentText });
-      setCommentText('');
-      await loadCardComments(selectedCard.id);
-      setNotice('Comment added');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Unable to add comment');
-    } finally {
-      setCommentSaving(false);
     }
   };
 
@@ -694,63 +719,104 @@ const TaskBoardPage = () => {
         open={detailModalOpen}
         title="Card Details"
         onClose={() => {
-          if (saving || commentSaving) return;
+          if (saving) return;
           setDetailModalOpen(false);
           setSelectedCard(null);
           setCardDetailForm(emptyCardDetailForm);
           setComments([]);
           setCommentText('');
+          setAttachments([]);
+          setAttachmentFiles([]);
         }}
         maxWidth="max-w-3xl"
       >
-        <div className="space-y-5">
-          <form onSubmit={saveCardDetails} className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold text-slate-700">Card Name <span className="text-red-500">*</span></label>
+        <form onSubmit={saveCardDetails} className="space-y-5">
+          <div>
+            <label className="text-sm font-semibold text-slate-700">Card Name <span className="text-red-500">*</span></label>
+            <input
+              value={cardDetailForm.title}
+              onChange={(event) => setCardDetailForm((current) => ({ ...current, title: event.target.value }))}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-base font-semibold text-slate-950 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Task title"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-700">Description</label>
+            <textarea
+              value={cardDetailForm.description}
+              onChange={(event) => setCardDetailForm((current) => ({ ...current, description: event.target.value }))}
+              rows={5}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Add a detailed description for this card"
+            />
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Attachments</h3>
+              <span className="text-xs font-medium text-slate-500">{attachments.length + attachmentFiles.length} files</span>
+            </div>
+            <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm font-semibold text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
               <input
-                value={cardDetailForm.title}
-                onChange={(event) => setCardDetailForm((current) => ({ ...current, title: event.target.value }))}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-base font-semibold text-slate-950 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                placeholder="Task title"
+                type="file"
+                multiple
+                onChange={(event) => setAttachmentFiles(Array.from(event.target.files || []))}
+                className="sr-only"
               />
+              Choose files to attach
+            </label>
+            {attachmentFiles.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {attachmentFiles.map((file) => (
+                  <span key={`${file.name}-${file.size}`} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {attachmentsLoading ? (
+                [1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-md bg-slate-100"></div>)
+              ) : attachments.length === 0 ? (
+                <div className="col-span-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  No attachments yet.
+                </div>
+              ) : (
+                attachments.map((attachment) => (
+                  <a
+                    key={attachment.id}
+                    href={attachment.data_url}
+                    download={attachment.file_name}
+                    className="group overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm hover:border-blue-200"
+                  >
+                    <div className="flex h-24 items-center justify-center bg-slate-100">
+                      {attachment.mime_type?.startsWith('image/') ? (
+                        <img src={attachment.data_url} alt={attachment.file_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="px-2 text-center text-xs font-semibold text-slate-500">File</span>
+                      )}
+                    </div>
+                    <div className="truncate px-2 py-2 text-xs font-semibold text-slate-700 group-hover:text-blue-700">
+                      {attachment.file_name}
+                    </div>
+                  </a>
+                ))
+              )}
             </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-700">Description</label>
-              <textarea
-                value={cardDetailForm.description}
-                onChange={(event) => setCardDetailForm((current) => ({ ...current, description: event.target.value }))}
-                rows={5}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                placeholder="Add a detailed description for this card"
-              />
-            </div>
-            <div className="flex justify-end">
-              <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
-                <ButtonIcon type="save" />
-                {saving ? 'Saving...' : 'Save Card'}
-              </button>
-            </div>
-          </form>
+          </div>
 
           <div className="border-t border-slate-200 pt-5">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-900">Comments</h3>
               <span className="text-xs font-medium text-slate-500">{comments.length} comments</span>
             </div>
-            <form onSubmit={addComment} className="space-y-3">
-              <textarea
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                placeholder="Write a comment"
-              />
-              <div className="flex justify-end">
-                <button type="submit" disabled={commentSaving} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
-                  {commentSaving ? 'Adding...' : 'Add Comment'}
-                </button>
-              </div>
-            </form>
+            <textarea
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              rows={3}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Write a comment"
+            />
 
             <div className="mt-5 space-y-3">
               {commentsLoading ? (
@@ -783,7 +849,13 @@ const TaskBoardPage = () => {
               )}
             </div>
           </div>
-        </div>
+          <div className="flex justify-end border-t border-slate-200 pt-4">
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+              <ButtonIcon type="save" />
+              {saving ? 'Saving...' : 'Save Card'}
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

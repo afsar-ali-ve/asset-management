@@ -4,6 +4,7 @@ const DEFAULT_LISTS = ['To Do', 'In Progress', 'Review', 'Done'];
 const BOARD_VISIBILITIES = ['Private', 'Public'];
 const BOARD_MEMBER_ROLES = ['Viewer', 'Member', 'Admin'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
 const isAdmin = (user) => user?.role_name === 'Admin';
 
@@ -632,6 +633,97 @@ const addTaskCardComment = async (req, res) => {
   }
 };
 
+const getTaskCardAttachments = async (req, res) => {
+  try {
+    const user = await requireActiveUser(req, res);
+    if (!user) return;
+
+    const cardContext = await getCardContext(req.params.id);
+    if (!cardContext || !(await canAccessBoard(cardContext.board_id, user))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `SELECT a.id,
+              a.card_id,
+              a.uploaded_by,
+              a.file_name,
+              a.mime_type,
+              a.file_size,
+              a.file_data,
+              a.created_at,
+              a.updated_at,
+              u.full_name AS uploaded_by_name,
+              u.email AS uploaded_by_email
+       FROM task_card_attachments a
+       LEFT JOIN users u ON u.id = a.uploaded_by
+       WHERE a.card_id = $1
+       ORDER BY a.created_at DESC`,
+      [req.params.id]
+    );
+
+    res.json({
+      attachments: result.rows.map((attachment) => ({
+        ...attachment,
+        file_data: undefined,
+        data_url: `data:${attachment.mime_type};base64,${attachment.file_data.toString('base64')}`,
+      })),
+    });
+  } catch (error) {
+    console.error('Get task card attachments error:', error);
+    res.status(500).json({ error: 'Unable to load attachments' });
+  }
+};
+
+const addTaskCardAttachment = async (req, res) => {
+  try {
+    const user = await requireActiveUser(req, res);
+    if (!user) return;
+
+    const fileName = req.body.file_name?.trim() || req.body.fileName?.trim();
+    const mimeType = req.body.mime_type?.trim() || req.body.mimeType?.trim();
+    const dataUrl = req.body.data_url || req.body.dataUrl;
+    const base64 = req.body.base64 || (typeof dataUrl === 'string' ? dataUrl.split(',')[1] : '');
+
+    if (!fileName || !mimeType || !base64) {
+      return res.status(400).json({ error: 'Attachment file is required' });
+    }
+
+    const fileBuffer = Buffer.from(base64, 'base64');
+    if (!fileBuffer.length) {
+      return res.status(400).json({ error: 'Attachment file is empty' });
+    }
+    if (fileBuffer.length > MAX_ATTACHMENT_BYTES) {
+      return res.status(400).json({ error: 'Attachment must be 5MB or smaller' });
+    }
+
+    const cardContext = await getCardContext(req.params.id);
+    if (!cardContext || !(await canAccessBoard(cardContext.board_id, user))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO task_card_attachments (card_id, uploaded_by, file_name, mime_type, file_size, file_data)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, card_id, uploaded_by, file_name, mime_type, file_size, created_at, updated_at`,
+      [req.params.id, user.id, fileName, mimeType, fileBuffer.length, fileBuffer]
+    );
+
+    res.status(201).json({
+      message: 'Attachment added successfully',
+      attachment: {
+        ...result.rows[0],
+        uploaded_by_name: user.full_name,
+        uploaded_by_email: user.email,
+        data_url: `data:${mimeType};base64,${fileBuffer.toString('base64')}`,
+      },
+    });
+  } catch (error) {
+    console.error('Add task card attachment error:', error);
+    res.status(500).json({ error: 'Unable to add attachment' });
+  }
+};
+
 const updateCardOrder = async (client, listId, orderedIds) => {
   for (const [index, cardId] of orderedIds.entries()) {
     await client.query(
@@ -916,6 +1008,8 @@ module.exports = {
   updateTaskCard,
   getTaskCardComments,
   addTaskCardComment,
+  getTaskCardAttachments,
+  addTaskCardAttachment,
   moveTaskCard,
   reorderTaskCards,
   getBoardAccessStatus,
