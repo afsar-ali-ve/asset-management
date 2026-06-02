@@ -18,15 +18,20 @@ import { CSS } from '@dnd-kit/utilities';
 import Modal from '../../components/common/Modal';
 import ButtonIcon from '../../components/common/ButtonIcon';
 import {
+  addTaskCardComment,
+  addTaskCardAttachment,
   createTaskCard,
   createTaskList,
   getAssignableUsers,
   getTaskBoardAccessStatus,
   getTaskBoardLists,
+  getTaskCardAttachments,
+  getTaskCardComments,
   getTaskBoards,
   moveTaskCard,
   requestTaskBoardAccess,
   reorderTaskCards,
+  updateTaskCard,
 } from '../../services/api';
 import { getStoredUser } from '../users/auth/authStorage';
 
@@ -39,6 +44,18 @@ const emptyCardForm = {
   due_date: '',
   assignee_id: '',
 };
+
+const emptyCardDetailForm = {
+  title: '',
+  description: '',
+};
+
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
 
 const getPriorityClass = (priority) => {
   if (priority === 'Urgent') return 'bg-red-50 text-red-700';
@@ -144,7 +161,7 @@ const ListDropZone = ({ listId, isEmpty, children }) => {
   );
 };
 
-const SortableTaskCard = memo(({ card }) => {
+const SortableTaskCard = memo(({ card, onOpen }) => {
   const {
     attributes,
     listeners,
@@ -162,13 +179,31 @@ const SortableTaskCard = memo(({ card }) => {
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      {...attributes}
-      {...listeners}
-      className={`cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md active:cursor-grabbing ${
+      onClick={() => onOpen(card)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          onOpen(card);
+        }
+      }}
+      className={`cursor-pointer rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md ${
         isDragging ? 'opacity-60 shadow-xl ring-2 ring-blue-200' : ''
       }`}
     >
-      <h3 className="text-sm font-semibold leading-5 text-slate-950">{card.title}</h3>
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          onClick={(event) => event.stopPropagation()}
+          className="mt-0.5 cursor-grab rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
+          aria-label={`Drag ${card.title}`}
+        >
+          <ButtonIcon type="menu" className="h-4 w-4" />
+        </button>
+        <h3 className="min-w-0 flex-1 text-sm font-semibold leading-5 text-slate-950">{card.title}</h3>
+      </div>
       {card.description && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{card.description}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${getPriorityClass(card.priority)}`}>
@@ -208,6 +243,15 @@ const TaskBoardPage = () => {
   const [selectedList, setSelectedList] = useState(null);
   const [cardModalOpen, setCardModalOpen] = useState(false);
   const [cardForm, setCardForm] = useState(emptyCardForm);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [cardDetailForm, setCardDetailForm] = useState(emptyCardDetailForm);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
 
   const loadBoard = useCallback(async () => {
     try {
@@ -281,6 +325,48 @@ const TaskBoardPage = () => {
     setCardModalOpen(true);
   };
 
+  const loadCardComments = useCallback(async (cardId) => {
+    try {
+      setCommentsLoading(true);
+      const response = await getTaskCardComments(cardId);
+      setComments(response.data.comments || []);
+    } catch (err) {
+      setComments([]);
+      setError(err.response?.data?.error || 'Unable to load comments');
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, []);
+
+  const loadCardAttachments = useCallback(async (cardId) => {
+    try {
+      setAttachmentsLoading(true);
+      const response = await getTaskCardAttachments(cardId);
+      setAttachments(response.data.attachments || []);
+    } catch (err) {
+      setAttachments([]);
+      setError(err.response?.data?.error || 'Unable to load attachments');
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  }, []);
+
+  const openCardDetails = useCallback((card) => {
+    setSelectedCard(card);
+    setCardDetailForm({
+      title: card.title || '',
+      description: card.description || '',
+    });
+    setCommentText('');
+    setComments([]);
+    setAttachments([]);
+    setAttachmentFiles([]);
+    setError('');
+    setDetailModalOpen(true);
+    loadCardComments(card.id);
+    loadCardAttachments(card.id);
+  }, [loadCardAttachments, loadCardComments]);
+
   const saveCard = async (event) => {
     event.preventDefault();
     if (!cardForm.title.trim()) {
@@ -305,6 +391,55 @@ const TaskBoardPage = () => {
       await loadBoard();
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to create task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveCardDetails = async (event) => {
+    event.preventDefault();
+    if (!cardDetailForm.title.trim()) {
+      setError('Task title is required');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      const response = await updateTaskCard(selectedCard.id, {
+        title: cardDetailForm.title,
+        description: cardDetailForm.description,
+      });
+      const updatedCard = response.data.card;
+      if (commentText.trim()) {
+        await addTaskCardComment(selectedCard.id, { comment: commentText });
+        setCommentText('');
+      }
+      if (attachmentFiles.length > 0) {
+        for (const file of attachmentFiles) {
+          const dataUrl = await fileToBase64(file);
+          await addTaskCardAttachment(selectedCard.id, {
+            file_name: file.name,
+            mime_type: file.type || 'application/octet-stream',
+            data_url: dataUrl,
+          });
+        }
+        setAttachmentFiles([]);
+      }
+      setLists((currentLists) => currentLists.map((list) => ({
+        ...list,
+        cards: (list.cards || []).map((card) => (
+          card.id === updatedCard.id ? { ...card, ...updatedCard } : card
+        )),
+      })));
+      setSelectedCard((current) => ({ ...(current || {}), ...updatedCard }));
+      await Promise.all([
+        loadCardComments(selectedCard.id),
+        loadCardAttachments(selectedCard.id),
+      ]);
+      setNotice('Card saved successfully');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Unable to save card');
     } finally {
       setSaving(false);
     }
@@ -470,7 +605,7 @@ const TaskBoardPage = () => {
                 <SortableContext items={(list.cards || []).map((card) => card.id)} strategy={verticalListSortingStrategy}>
                   <ListDropZone listId={list.id} isEmpty={(list.cards || []).length === 0}>
                     {(list.cards || []).map((card) => (
-                      <SortableTaskCard key={card.id} card={card} />
+                      <SortableTaskCard key={card.id} card={card} onOpen={openCardDetails} />
                     ))}
                   </ListDropZone>
                 </SortableContext>
@@ -575,6 +710,149 @@ const TaskBoardPage = () => {
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
               <ButtonIcon type="save" />
               {saving ? 'Saving...' : 'Create Card'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={detailModalOpen}
+        title="Card Details"
+        onClose={() => {
+          if (saving) return;
+          setDetailModalOpen(false);
+          setSelectedCard(null);
+          setCardDetailForm(emptyCardDetailForm);
+          setComments([]);
+          setCommentText('');
+          setAttachments([]);
+          setAttachmentFiles([]);
+        }}
+        maxWidth="max-w-3xl"
+      >
+        <form onSubmit={saveCardDetails} className="space-y-5">
+          <div>
+            <label className="text-sm font-semibold text-slate-700">Card Name <span className="text-red-500">*</span></label>
+            <input
+              value={cardDetailForm.title}
+              onChange={(event) => setCardDetailForm((current) => ({ ...current, title: event.target.value }))}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-base font-semibold text-slate-950 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Task title"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-700">Description</label>
+            <textarea
+              value={cardDetailForm.description}
+              onChange={(event) => setCardDetailForm((current) => ({ ...current, description: event.target.value }))}
+              rows={5}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Add a detailed description for this card"
+            />
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Attachments</h3>
+              <span className="text-xs font-medium text-slate-500">{attachments.length + attachmentFiles.length} files</span>
+            </div>
+            <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm font-semibold text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+              <input
+                type="file"
+                multiple
+                onChange={(event) => setAttachmentFiles(Array.from(event.target.files || []))}
+                className="sr-only"
+              />
+              Choose files to attach
+            </label>
+            {attachmentFiles.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {attachmentFiles.map((file) => (
+                  <span key={`${file.name}-${file.size}`} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {attachmentsLoading ? (
+                [1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-md bg-slate-100"></div>)
+              ) : attachments.length === 0 ? (
+                <div className="col-span-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  No attachments yet.
+                </div>
+              ) : (
+                attachments.map((attachment) => (
+                  <a
+                    key={attachment.id}
+                    href={attachment.data_url}
+                    download={attachment.file_name}
+                    className="group overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm hover:border-blue-200"
+                  >
+                    <div className="flex h-24 items-center justify-center bg-slate-100">
+                      {attachment.mime_type?.startsWith('image/') ? (
+                        <img src={attachment.data_url} alt={attachment.file_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="px-2 text-center text-xs font-semibold text-slate-500">File</span>
+                      )}
+                    </div>
+                    <div className="truncate px-2 py-2 text-xs font-semibold text-slate-700 group-hover:text-blue-700">
+                      {attachment.file_name}
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Comments</h3>
+              <span className="text-xs font-medium text-slate-500">{comments.length} comments</span>
+            </div>
+            <textarea
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              rows={3}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Write a comment"
+            />
+
+            <div className="mt-5 space-y-3">
+              {commentsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="h-16 animate-pulse rounded-md bg-slate-100"></div>
+                  ))}
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  No comments yet.
+                </div>
+              ) : (
+                comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3 rounded-md border border-slate-200 bg-white p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-bold text-white">
+                      {getInitials(comment.commented_by_name || comment.commented_by_email || 'User')}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{comment.commented_by_name || comment.commented_by_email || 'User'}</span>
+                        <span className="text-xs text-slate-500">
+                          {comment.created_at ? new Date(comment.created_at).toLocaleString() : ''}
+                        </span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.comment}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end border-t border-slate-200 pt-4">
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+              <ButtonIcon type="save" />
+              {saving ? 'Saving...' : 'Save Card'}
             </button>
           </div>
         </form>
