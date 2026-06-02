@@ -217,14 +217,16 @@ const TaskManagementPage = () => {
           <h1 className="text-2xl font-semibold text-slate-950">Task Management</h1>
           <p className="mt-1 text-sm text-slate-500">Create boards and organize tasks into simple Kanban columns.</p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <ButtonIcon type="add" />
-          New Board
-        </button>
+        {isAdminUser && (
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <ButtonIcon type="add" />
+            New Board
+          </button>
+        )}
       </div>
 
       {notice && (
