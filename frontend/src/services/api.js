@@ -139,6 +139,9 @@ export const getTaskBoardLists = (boardId) => axios.get(`${TASK_BOARDS_API_BASE_
 export const createTaskList = (data) => axios.post(TASK_LISTS_API_BASE_URL, data, getAuthConfig());
 export const getTaskCards = (listId) => axios.get(`${TASK_LISTS_API_BASE_URL}/${listId}/cards`, getAuthConfig());
 export const createTaskCard = (data) => axios.post(TASK_CARDS_API_BASE_URL, data, getAuthConfig());
+export const updateTaskCard = (id, data) => axios.put(`${TASK_CARDS_API_BASE_URL}/${id}`, data, getAuthConfig());
+export const getTaskCardComments = (id) => axios.get(`${TASK_CARDS_API_BASE_URL}/${id}/comments`, getAuthConfig());
+export const addTaskCardComment = (id, data) => axios.post(`${TASK_CARDS_API_BASE_URL}/${id}/comments`, data, getAuthConfig());
 export const moveTaskCard = (id, data) => axios.put(`${TASK_CARDS_API_BASE_URL}/${id}/move`, data, getAuthConfig());
 export const reorderTaskCards = (data) => axios.put(`${TASK_CARDS_API_BASE_URL}/reorder`, data, getAuthConfig());
 export const getBoardAccessRequests = () => axios.get(apiUrl('/api/admin/board-access-requests'), getAuthConfig());

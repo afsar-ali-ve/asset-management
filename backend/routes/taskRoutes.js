@@ -10,6 +10,9 @@ const {
   createTaskList,
   getTaskCards,
   createTaskCard,
+  updateTaskCard,
+  getTaskCardComments,
+  addTaskCardComment,
   moveTaskCard,
   reorderTaskCards,
   getBoardAccessStatus,
@@ -34,6 +37,9 @@ router.post('/task-lists', createTaskList);
 router.get('/task-lists/:listId/cards', getTaskCards);
 router.post('/task-cards', createTaskCard);
 router.put('/task-cards/reorder', reorderTaskCards);
+router.put('/task-cards/:id', updateTaskCard);
+router.get('/task-cards/:id/comments', getTaskCardComments);
+router.post('/task-cards/:id/comments', addTaskCardComment);
 router.put('/task-cards/:id/move', moveTaskCard);
 router.get('/admin/board-access-requests', getBoardAccessRequests);
 router.put('/admin/board-access-requests/:requestId/approve', approveBoardAccessRequest);

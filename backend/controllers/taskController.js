@@ -524,6 +524,114 @@ const createTaskCard = async (req, res) => {
   }
 };
 
+const updateTaskCard = async (req, res) => {
+  try {
+    const user = await requireActiveUser(req, res);
+    if (!user) return;
+
+    const cardId = req.params.id;
+    const title = req.body.title?.trim();
+    const description = req.body.description?.trim() || null;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Task title is required' });
+    }
+
+    const cardContext = await getCardContext(cardId);
+    if (!cardContext || !(await canAccessBoard(cardContext.board_id, user))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `UPDATE task_cards
+       SET title = $1,
+           description = $2,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING id, list_id, title, description, priority, due_date, assignee_id, position, order_index, created_by, created_at, updated_at`,
+      [title, description, cardId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.json({ message: 'Task updated successfully', card: result.rows[0] });
+  } catch (error) {
+    console.error('Update task card error:', error);
+    res.status(500).json({ error: 'Unable to update task' });
+  }
+};
+
+const getTaskCardComments = async (req, res) => {
+  try {
+    const user = await requireActiveUser(req, res);
+    if (!user) return;
+
+    const cardContext = await getCardContext(req.params.id);
+    if (!cardContext || !(await canAccessBoard(cardContext.board_id, user))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `SELECT c.id,
+              c.card_id,
+              c.user_id,
+              c.comment,
+              c.created_at,
+              c.updated_at,
+              u.full_name AS commented_by_name,
+              u.email AS commented_by_email
+       FROM task_card_comments c
+       LEFT JOIN users u ON u.id = c.user_id
+       WHERE c.card_id = $1
+       ORDER BY c.created_at ASC`,
+      [req.params.id]
+    );
+
+    res.json({ comments: result.rows });
+  } catch (error) {
+    console.error('Get task card comments error:', error);
+    res.status(500).json({ error: 'Unable to load comments' });
+  }
+};
+
+const addTaskCardComment = async (req, res) => {
+  try {
+    const user = await requireActiveUser(req, res);
+    if (!user) return;
+
+    const comment = req.body.comment?.trim();
+    if (!comment) {
+      return res.status(400).json({ error: 'Comment is required' });
+    }
+
+    const cardContext = await getCardContext(req.params.id);
+    if (!cardContext || !(await canAccessBoard(cardContext.board_id, user))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO task_card_comments (card_id, user_id, comment)
+       VALUES ($1, $2, $3)
+       RETURNING id, card_id, user_id, comment, created_at, updated_at`,
+      [req.params.id, user.id, comment]
+    );
+
+    res.status(201).json({
+      message: 'Comment added successfully',
+      comment: {
+        ...result.rows[0],
+        commented_by_name: user.full_name,
+        commented_by_email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error('Add task card comment error:', error);
+    res.status(500).json({ error: 'Unable to add comment' });
+  }
+};
+
 const updateCardOrder = async (client, listId, orderedIds) => {
   for (const [index, cardId] of orderedIds.entries()) {
     await client.query(
@@ -805,6 +913,9 @@ module.exports = {
   createTaskList,
   getTaskCards,
   createTaskCard,
+  updateTaskCard,
+  getTaskCardComments,
+  addTaskCardComment,
   moveTaskCard,
   reorderTaskCards,
   getBoardAccessStatus,
