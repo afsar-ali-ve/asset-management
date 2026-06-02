@@ -2,7 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/common/Modal';
 import ButtonIcon from '../../components/common/ButtonIcon';
-import { assignTaskBoardUser, createTaskBoard, getTaskBoards, updateTaskBoard } from '../../services/api';
+import {
+  assignTaskBoardUser,
+  createTaskBoard,
+  getTaskBoardMembers,
+  getTaskBoards,
+  removeTaskBoardMember,
+  updateTaskBoard,
+} from '../../services/api';
 import { getStoredUser } from '../users/auth/authStorage';
 
 const emptyBoardForm = {
@@ -35,6 +42,9 @@ const TaskManagementPage = () => {
   const [selectedBoard, setSelectedBoard] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignForm, setAssignForm] = useState(emptyAssignForm);
+  const [assignedUsers, setAssignedUsers] = useState([]);
+  const [assignedUsersLoading, setAssignedUsersLoading] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState('');
   const [formError, setFormError] = useState('');
 
   const loadBoards = async () => {
@@ -98,8 +108,10 @@ const TaskManagementPage = () => {
 
     setSelectedBoard(board);
     setAssignForm(emptyAssignForm);
+    setAssignedUsers([]);
     setFormError('');
     setAssignModalOpen(true);
+    loadAssignedUsers(board.id);
   };
 
   const closeAssignModal = () => {
@@ -107,7 +119,23 @@ const TaskManagementPage = () => {
     setAssignModalOpen(false);
     setSelectedBoard(null);
     setAssignForm(emptyAssignForm);
+    setAssignedUsers([]);
+    setAssignedUsersLoading(false);
+    setRemovingUserId('');
     setFormError('');
+  };
+
+  const loadAssignedUsers = async (boardId) => {
+    try {
+      setAssignedUsersLoading(true);
+      const response = await getTaskBoardMembers(boardId);
+      setAssignedUsers(response.data.members || []);
+    } catch (err) {
+      setAssignedUsers([]);
+      setFormError(err.response?.data?.error || 'Unable to load assigned users');
+    } finally {
+      setAssignedUsersLoading(false);
+    }
   };
 
   const saveBoard = async (event) => {
@@ -157,14 +185,28 @@ const TaskManagementPage = () => {
         role: assignForm.role,
       });
       setNotice(response.data.message || 'Board assigned successfully');
-      setAssignModalOpen(false);
-      setSelectedBoard(null);
       setAssignForm(emptyAssignForm);
+      await loadAssignedUsers(selectedBoard.id);
       await loadBoards();
     } catch (err) {
       setFormError(err.response?.data?.error || 'Unable to assign board');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const removeAssignedUser = async (user) => {
+    try {
+      setRemovingUserId(user.user_id);
+      setFormError('');
+      const response = await removeTaskBoardMember(selectedBoard.id, user.user_id);
+      setNotice(response.data.message || 'User removed from board');
+      await loadAssignedUsers(selectedBoard.id);
+      await loadBoards();
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Unable to remove assigned user');
+    } finally {
+      setRemovingUserId('');
     }
   };
 
@@ -347,6 +389,57 @@ const TaskManagementPage = () => {
             >
               {boardRoles.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div className="text-sm font-semibold text-slate-800">Assigned Users</div>
+              <div className="text-xs font-medium text-slate-500">{assignedUsers.length} users</div>
+            </div>
+            <div className="max-h-64 overflow-y-auto p-3">
+              {assignedUsersLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="h-14 animate-pulse rounded-md bg-white"></div>
+                  ))}
+                </div>
+              ) : assignedUsers.length === 0 ? (
+                <div className="rounded-md border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+                  No users assigned yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {assignedUsers.map((user) => (
+                    <div key={user.user_id} className="flex items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                        {(user.full_name || user.email || 'U')
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part.charAt(0).toUpperCase())
+                          .join('') || 'U'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-semibold text-slate-900">{user.full_name || user.email}</span>
+                          {user.is_owner && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Owner</span>}
+                          {!user.is_active && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">Inactive</span>}
+                        </div>
+                        <div className="truncate text-xs text-slate-500">{user.email}</div>
+                      </div>
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{user.role}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAssignedUser(user)}
+                        disabled={user.is_owner || Boolean(removingUserId)}
+                        className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:border-slate-200 disabled:hover:bg-white"
+                      >
+                        {removingUserId === user.user_id ? 'Removing...' : 'Remove'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={closeAssignModal} className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">

@@ -131,6 +131,8 @@ export const getTaskBoards = () => axios.get(TASK_BOARDS_API_BASE_URL, getAuthCo
 export const createTaskBoard = (data) => axios.post(TASK_BOARDS_API_BASE_URL, data, getAuthConfig());
 export const updateTaskBoard = (boardId, data) => axios.put(`${TASK_BOARDS_API_BASE_URL}/${boardId}`, data, getAuthConfig());
 export const assignTaskBoardUser = (boardId, data) => axios.post(`${TASK_BOARDS_API_BASE_URL}/${boardId}/assign-user`, data, getAuthConfig());
+export const getTaskBoardMembers = (boardId) => axios.get(`${TASK_BOARDS_API_BASE_URL}/${boardId}/members`, getAuthConfig());
+export const removeTaskBoardMember = (boardId, userId) => axios.delete(`${TASK_BOARDS_API_BASE_URL}/${boardId}/members/${userId}`, getAuthConfig());
 export const getTaskBoardAccessStatus = (boardId) => axios.get(`${TASK_BOARDS_API_BASE_URL}/${boardId}/access-status`, getAuthConfig());
 export const requestTaskBoardAccess = (boardId) => axios.post(`${TASK_BOARDS_API_BASE_URL}/${boardId}/request-access`, {}, getAuthConfig());
 export const getTaskBoardLists = (boardId) => axios.get(`${TASK_BOARDS_API_BASE_URL}/${boardId}/lists`, getAuthConfig());

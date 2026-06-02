@@ -4,6 +4,8 @@ const {
   createTaskBoard,
   updateTaskBoard,
   assignUserToBoard,
+  getBoardMembers,
+  removeUserFromBoard,
   getTaskLists,
   createTaskList,
   getTaskCards,
@@ -23,6 +25,8 @@ router.get('/task-boards', getTaskBoards);
 router.post('/task-boards', createTaskBoard);
 router.put('/task-boards/:boardId', updateTaskBoard);
 router.post('/task-boards/:boardId/assign-user', assignUserToBoard);
+router.get('/task-boards/:boardId/members', getBoardMembers);
+router.delete('/task-boards/:boardId/members/:userId', removeUserFromBoard);
 router.get('/task-boards/:boardId/access-status', getBoardAccessStatus);
 router.post('/task-boards/:boardId/request-access', requestBoardAccess);
 router.get('/task-boards/:boardId/lists', getTaskLists);

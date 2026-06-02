@@ -280,6 +280,76 @@ const assignUserToBoard = async (req, res) => {
   }
 };
 
+const getBoardMembers = async (req, res) => {
+  try {
+    const currentUser = await requireAdminUser(req, res);
+    if (!currentUser) return;
+
+    const { boardId } = req.params;
+    const boardResult = await pool.query('SELECT id, created_by FROM task_boards WHERE id = $1', [boardId]);
+    const board = boardResult.rows[0];
+    if (!board) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT m.id,
+              m.board_id,
+              m.user_id,
+              m.role,
+              m.created_at,
+              m.updated_at,
+              u.full_name,
+              u.email,
+              u.is_active,
+              (u.id = $2) AS is_owner
+       FROM task_board_members m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.board_id = $1
+       ORDER BY is_owner DESC, u.full_name ASC, u.email ASC`,
+      [boardId, board.created_by]
+    );
+
+    res.json({ members: result.rows });
+  } catch (error) {
+    console.error('Get board members error:', error);
+    res.status(500).json({ error: 'Unable to load assigned users' });
+  }
+};
+
+const removeUserFromBoard = async (req, res) => {
+  try {
+    const currentUser = await requireAdminUser(req, res);
+    if (!currentUser) return;
+
+    const { boardId, userId } = req.params;
+    const boardResult = await pool.query('SELECT id, created_by FROM task_boards WHERE id = $1', [boardId]);
+    const board = boardResult.rows[0];
+    if (!board) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
+    if (board.created_by === userId) {
+      return res.status(400).json({ error: 'Board owner cannot be removed' });
+    }
+
+    const result = await pool.query(
+      `DELETE FROM task_board_members
+       WHERE board_id = $1 AND user_id = $2
+       RETURNING id, board_id, user_id, role`,
+      [boardId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Assigned user not found' });
+    }
+
+    res.json({ message: 'User removed from board', member: result.rows[0] });
+  } catch (error) {
+    console.error('Remove board user error:', error);
+    res.status(500).json({ error: 'Unable to remove assigned user' });
+  }
+};
+
 const getTaskLists = async (req, res) => {
   try {
     const user = await requireActiveUser(req, res);
@@ -729,6 +799,8 @@ module.exports = {
   createTaskBoard,
   updateTaskBoard,
   assignUserToBoard,
+  getBoardMembers,
+  removeUserFromBoard,
   getTaskLists,
   createTaskList,
   getTaskCards,
