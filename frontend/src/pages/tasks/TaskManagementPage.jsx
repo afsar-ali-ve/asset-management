@@ -20,10 +20,8 @@ const emptyBoardForm = {
 
 const emptyAssignForm = {
   email: '',
-  role: 'Viewer',
 };
 
-const boardRoles = ['Viewer', 'Member', 'Admin'];
 const visibilityOptions = ['Private', 'Public'];
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -182,7 +180,7 @@ const TaskManagementPage = () => {
       setFormError('');
       const response = await assignTaskBoardUser(selectedBoard.id, {
         email,
-        role: assignForm.role,
+        role: 'Viewer',
       });
       setNotice(response.data.message || 'Board assigned successfully');
       setAssignForm(emptyAssignForm);
@@ -381,16 +379,6 @@ const TaskManagementPage = () => {
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
               placeholder="user@example.com"
             />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-700">Board Role</label>
-            <select
-              value={assignForm.role}
-              onChange={(event) => setAssignForm((current) => ({ ...current, role: event.target.value }))}
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            >
-              {boardRoles.map((role) => <option key={role} value={role}>{role}</option>)}
-            </select>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
