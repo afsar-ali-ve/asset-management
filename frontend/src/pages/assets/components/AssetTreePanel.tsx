@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 const EXPANDED_STORAGE_KEY = 'assetTreeExpandedNodes';
 const SELECTED_STORAGE_KEY = 'assetTreeSelectedNode';
+const CATEGORY_ROOTS = [
+    { id: 'asset-category-it', display_name: 'IT Assets', assetCategory: 'IT', children: [] },
+    { id: 'asset-category-non-it', display_name: 'Non-IT Assets', assetCategory: 'Non-IT', children: [] },
+];
 const getParentProductTypeId = (value) => {
     if (!value) {
         return '';
@@ -9,6 +13,21 @@ const getParentProductTypeId = (value) => {
         return String(value.id);
     }
     return String(value);
+};
+const normalizeAssetCategory = (value) => {
+    const normalizedValue = String(value || '').trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+    if (normalizedValue === 'it') {
+        return 'IT';
+    }
+    if (normalizedValue === 'non it' || normalizedValue === 'nonit') {
+        return 'Non-IT';
+    }
+    return '';
+};
+const normalizeNodeName = (value) => String(value || '').trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+const isCategoryPlaceholderNode = (node) => {
+    const normalizedName = normalizeNodeName(node.display_name || node.name);
+    return normalizedName === 'all assets' || normalizedName === 'it assets' || normalizedName === 'non it assets';
 };
 const readExpandedProductTypeIds = () => {
     try {
@@ -35,26 +54,44 @@ const AssetTreePanel = ({ productTypes, selectedCategory, onSelectCategory, load
     const [expandedProductTypeIds, setExpandedProductTypeIds] = useState(readExpandedProductTypeIds);
     const productTypeTree = useMemo(() => {
         const nodeMap = new Map();
-        const roots = [];
+        const rootsByCategory = {
+            IT: [],
+            'Non-IT': [],
+        };
         productTypes.forEach((productType) => {
-            nodeMap.set(productType.id, { ...productType, children: [] });
+            const assetCategory = normalizeAssetCategory(productType.assetCategory || productType.asset_category_type);
+            nodeMap.set(String(productType.id), { ...productType, id: String(productType.id), assetCategory, children: [] });
         });
         nodeMap.forEach((node) => {
             const parentId = getParentProductTypeId(node.parent_product_type);
             const parent = parentId ? nodeMap.get(parentId) : null;
-            if (parent) {
+            if (parent && parent.assetCategory === node.assetCategory) {
                 parent.children.push(node);
             }
             else {
-                roots.push(node);
+                const category = node.assetCategory === 'Non-IT' ? 'Non-IT' : 'IT';
+                rootsByCategory[category].push(node);
             }
+        });
+        const removePlaceholderNodes = (nodes) => nodes.flatMap((node) => {
+            const children = removePlaceholderNodes(node.children);
+            if (isCategoryPlaceholderNode(node)) {
+                return children;
+            }
+            return [{ ...node, children }];
         });
         const sortNodes = (nodes) => {
             nodes.sort((a, b) => a.display_name.localeCompare(b.display_name));
             nodes.forEach((node) => sortNodes(node.children));
         };
-        sortNodes(roots);
-        return roots;
+        rootsByCategory.IT = removePlaceholderNodes(rootsByCategory.IT);
+        rootsByCategory['Non-IT'] = removePlaceholderNodes(rootsByCategory['Non-IT']);
+        sortNodes(rootsByCategory.IT);
+        sortNodes(rootsByCategory['Non-IT']);
+        return CATEGORY_ROOTS.map((root) => ({
+            ...root,
+            children: root.assetCategory === 'IT' ? rootsByCategory.IT : rootsByCategory['Non-IT'],
+        }));
     }, [productTypes]);
     useEffect(() => {
         if (!selectedCategory) {
@@ -75,16 +112,37 @@ const AssetTreePanel = ({ productTypes, selectedCategory, onSelectCategory, load
             return nextIds;
         });
     };
+    useEffect(() => {
+        setExpandedProductTypeIds((currentIds) => {
+            const nextIds = new Set(currentIds);
+            let changed = false;
+            CATEGORY_ROOTS.forEach((root) => {
+                if (!nextIds.has(root.id)) {
+                    nextIds.add(root.id);
+                    changed = true;
+                }
+            });
+            if (changed) {
+                persistExpandedProductTypeIds(nextIds);
+            }
+            return changed ? nextIds : currentIds;
+        });
+    }, []);
     const renderProductTypeNode = (node, depth = 0) => {
         const hasChildren = node.children.length > 0;
         const expanded = expandedProductTypeIds.has(node.id);
+        const isCategoryRoot = node.id === 'asset-category-it' || node.id === 'asset-category-non-it';
         const selected = selectedCategory === node.id;
         return (<div key={node.id}>
-        <div className={`flex items-center rounded-md text-sm transition ${selected ? 'bg-slate-100 text-slate-950' : 'text-slate-700 hover:bg-slate-50'}`} style={{ paddingLeft: `${depth * 18 + 8}px` }}>
+        <div className={`flex items-center rounded-md text-sm transition ${selected ? 'bg-slate-100 text-slate-950' : isCategoryRoot ? 'font-semibold text-slate-900 hover:bg-slate-50' : 'text-slate-700 hover:bg-slate-50'}`} style={{ paddingLeft: `${depth * 18 + 8}px` }}>
           <button type="button" onClick={() => hasChildren && handleToggleProductType(node.id)} className="flex h-8 w-6 shrink-0 items-center justify-center text-slate-500" aria-label={expanded ? `Collapse ${node.display_name}` : `Expand ${node.display_name}`}>
             {hasChildren ? (expanded ? '\u25BE' : '\u25B8') : ''}
           </button>
           <button type="button" onClick={() => {
+                if (isCategoryRoot) {
+                    handleToggleProductType(node.id);
+                    return;
+                }
                 onSelectCategory(node.id);
                 persistSelectedProductTypeId(node.id);
                 if (hasChildren) {
