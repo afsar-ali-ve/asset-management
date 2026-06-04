@@ -3,7 +3,7 @@ import ButtonIcon from '../../../components/common/ButtonIcon';
 import { createProductType, updateProductType } from '../../../services/api';
 const categoryOptions = ['Asset', 'Consumable'];
 const assetTypeOptions = ['Asset', 'Consumable', 'Component'];
-const assetCategoryTypeOptions = ['IT', 'Non IT'];
+const assetCategoryTypeOptions = ['IT', 'Non-IT'];
 const getProductTypeId = (value) => {
     if (!value) {
         return '';
@@ -40,7 +40,7 @@ const ProductTypeForm = ({ editing, onSave, onClose, productTypes, saving, paren
                 category: editing.category || '',
                 parent_product_type: getProductTypeId(editing.parent_product_type),
                 asset_type: editing.asset_type || '',
-                asset_category_type: editing.asset_category_type || '',
+                asset_category_type: editing.assetCategory || (editing.asset_category_type === 'Non IT' ? 'Non-IT' : editing.asset_category_type) || '',
                 description: editing.description || '',
             });
             setParentExplicitNoParent(!getProductTypeId(editing.parent_product_type));

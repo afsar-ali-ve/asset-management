@@ -24,9 +24,21 @@ const validateParentProductType = async ({ parentProductType, allowNoParent, cur
   return { parentId: normalizedParentId };
 };
 
+const productTypeSelect = `
+  SELECT
+    *,
+    CASE
+      WHEN LOWER(REPLACE(COALESCE(asset_category_type, ''), '-', ' ')) = 'non it' THEN 'Non-IT'
+      WHEN LOWER(COALESCE(asset_category_type, '')) = 'it' THEN 'IT'
+      ELSE asset_category_type
+    END AS "assetCategory",
+    parent_product_type AS "parentId"
+  FROM product_types
+`;
+
 const getAllProductTypes = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM product_types');
+    const result = await pool.query(`${productTypeSelect} ORDER BY display_name ASC`);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -36,7 +48,7 @@ const getAllProductTypes = async (req, res) => {
 const getProductTypeById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM product_types WHERE id = $1', [id]);
+    const result = await pool.query(`${productTypeSelect} WHERE id = $1`, [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Product type not found' });
     }
