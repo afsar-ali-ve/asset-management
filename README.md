@@ -1,3 +1,5 @@
+**Asset Management**
+
 A modern admin-dashboard web application for managing IT assets, built with React + Vite (frontend) and Node.js + Express + Prisma (backend).
 
 Projet setup Instruction:
